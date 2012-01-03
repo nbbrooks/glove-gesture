@@ -18,8 +18,8 @@ Gesture::Gesture(int argc, char** argv) {
     firstPass = true;
     save = 0;
     CvCapture* capture = 0;
-//    arr = {{1,8,12,20,25}, {5,9,13,24,26}};
-    
+    //    arr = {{1,8,12,20,25}, {5,9,13,24,26}};
+
     if (argc == 1 || (argc == 2 && strlen(argv[1]) == 1 && isdigit(argv[1][0])))
         capture = cvCaptureFromCAM(argc == 2 ? argv[1][0] - '0' : 0);
     else if (argc == 2)
@@ -32,7 +32,8 @@ Gesture::Gesture(int argc, char** argv) {
 
     printf("Hot keys: \n\tESC - quit the program\n");
 
-    cvNamedWindow("Camera", CV_WINDOW_AUTOSIZE);
+    cvNamedWindow("Input", CV_WINDOW_AUTOSIZE);
+    cvNamedWindow("Output", CV_WINDOW_AUTOSIZE);
 
     for (;;) {
         frame = 0;
@@ -50,13 +51,18 @@ Gesture::Gesture(int argc, char** argv) {
 
         //printf("Processing a %ix%i image with step %i and %i channels and size %ld\n",height,width,step,channels,sizeof(frame)); 
 
-        nothing();
+        display = true;
+        //        nothing();
         //applyInverse();
         //applyHistory();
         //applyBackground();
-        applySkin();
+//        applySkin();
+        applyChRB();
 
-        cvShowImage("Camera", postFrame);
+        if (display) {
+            cvShowImage("Input", frame);
+            cvShowImage("Output", &outFrame);
+        }
 
         c = cvWaitKey(10);
         if ((char) c == 27) {
@@ -67,23 +73,26 @@ Gesture::Gesture(int argc, char** argv) {
             cvSaveImage(ss.str().data(), frame);
             save++;
         }
-        
+
         if (firstPass) {
             firstPass = false;
         }
     }
 
     cvReleaseCapture(&capture);
-    cvDestroyWindow("Camera");
+    cvDestroyWindow("Input");
+    cvDestroyWindow("Output");
 
     return;
 }
 
 void Gesture::nothing(void) {
     if (firstPass) {
-        postFrame = cvCreateImage(cvSize(width, height), depth, channels);
+        //        postFrame = cvCreateImage(cvSize(width, height), depth, channels);
     }
-    postFrame = cvCloneImage(frame);
+    //    postFrame = cvCloneImage(frame);
+    Mat frameMatrix = cvarrToMat(frame);
+    outFrame = frameMatrix;
 }
 
 void Gesture::applyInverse(void) {
@@ -137,91 +146,171 @@ void Gesture::applyBackground(void) {
 }
 
 void Gesture::applySkin(void) {
-
-    if (firstPass) {
-        prevFrame = cvCloneImage(frame);
-        postFrame = cvCreateImage(cvSize(width, height), depth, 3);
-        // Statistics variables
-        // Mean
-        vector<Mat> meansT;
-        Mat rMeanT = Mat(1, width * height, CV_32F);
-        Mat gMeanT = Mat(1, width * height, CV_32F);
-        rMeanT = Scalar(R_MEAN);
-        gMeanT = Scalar(R_MEAN);
-        meansT.push_back(rMeanT);
-        meansT.push_back(gMeanT);
-        merge(meansT, skinMeanT);
-        // Variance
-        vector<Mat> varsT;
-        static float rVar[2] = {254.0, 0};
-        static float gVar[2] = {0, 171.0};
-        Mat rVarT = Mat(1, 1, CV_32F, rVar);
-        Mat gVarT = Mat(1, 1, CV_32F, gVar);
-        varsT.push_back(rVarT);
-        varsT.push_back(gVarT);
-        merge(varsT, skinVarInv);
-//        static float var[2][2] = {{254.0, 0}, {0, 171.0}};
-//        skinVarInv = Mat(2, 2, CV_32F, var).clone();
-        std::cout << "skinMeanT is size " << skinMeanT.rows << "x" << skinMeanT.cols << "\n";
-        std::cout << "skinVarInv is size " << skinVarInv.rows << "x" << skinVarInv.cols << "\n";
-        return;
-    }
     Mat frameMatrix = cvarrToMat(frame);
+    // Separate channels into single channel float matrices
     vector<Mat> rgb;
     split(frameMatrix, rgb);
     Mat rFloat, gFloat, bFloat;
-    rgb[0].convertTo(rFloat, CV_32F, 1.0, 0);
-    rgb[1].convertTo(gFloat, CV_32F, 1.0, 0);
-    rgb[2].convertTo(bFloat, CV_32F, 1.0, 0);
-    Mat temp1, temp2, temp3, rChrom, gChrom;
-    add(rgb[0], rgb[1], temp1);
-    add(temp1, rgb[2], temp2);
-    add(temp2, Scalar(1.0), temp3);
-    divide(rgb[0], temp3, rChrom);
-    divide(rgb[1], temp3, gChrom);
-    std::cout << "1. gChrom is size " << gChrom.rows << "x" << gChrom.cols <<"x" << gChrom.dims << "\n";
-    rChrom = rChrom.reshape(0,1);
-    gChrom = gChrom.reshape(0,1);
-    std::cout << "2. gChrom is size " << gChrom.rows << "x" << gChrom.cols <<"x" << gChrom.dims << "\n";
-    vector<Mat> rgChrom;
-    Mat rgT;
-    rgChrom.push_back(rChrom);
-    rgChrom.push_back(gChrom);
-    merge(rgChrom, rgT);
-    std::cout << "3. rgChrom is size " << rgChrom.size() << "\n";
-    std::cout << "4. rgT is size " << rgT.rows << "x" << rgT.cols <<"x" << rgT.dims << "\n";
+    rgb[0].convertTo(rFloat, CV_32FC1, 1.0, 0);
+    rgb[1].convertTo(gFloat, CV_32FC1, 1.0, 0);
+    rgb[2].convertTo(bFloat, CV_32FC1, 1.0, 0);
+//    printf("size frameMatrix %d %d %d\n", frameMatrix.size().height, frameMatrix.size().width, frameMatrix.channels());
+//    printf("size rFloat %d %d %d\n", rFloat.size().height, rFloat.size().width, rFloat.channels());
+    // Compute chromacity for r and g
+    Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, rGauss, gGauss, d, expTerm, outMatrix;
+    add(rFloat, gFloat, temp1);
+    add(temp1, bFloat, temp2);
+    add(temp2, Scalar(1.0), denom);
+    divide(rFloat, denom, rChrom);
+    divide(gFloat, denom, gChrom);
+    // Compute gaussian probability pixel is on hand
+    rChromV = rChrom.reshape(0, 1);
+    gChromV = gChrom.reshape(0, 1);
+    // (X-U)T
+    subtract(rChromV, Scalar(R_CH_MEAN), temp1);
+    // * S-1
+    multiply(temp1, Scalar(R_CH_VAR_INV), temp2);
+    rGauss = temp2.mul(rChromV);
+    // * (X-U)
+    subtract(gChromV, Scalar(G_CH_MEAN), temp1);
+    multiply(temp1, Scalar(G_CH_VAR_INV), temp2);
+    gGauss = temp2.mul(gChromV);
+    add(rGauss, gGauss, d);
+    multiply(d, Scalar(-0.5), expTerm);
+    exp(expTerm, outputMatrix);
+    outputMatrix = outputMatrix.reshape(0, 480);
+//    outheight = outFrame.height;
+//    outwidth = outFrame.width;
+//    outstep = outFrame.widthStep;
+//    outdepth = outFrame.depth;
+//        outchannels = outFrame.nChannels;
+//    outdata = (uchar *) outFrame.imageData;
+//    printf("size outputMatrix %d %d %d\n", outputMatrix.size().height, outputMatrix.size().width, outputMatrix.channels());
+//    printf("outFrame height %d width %d channels %d depth %d size %ld\n", outheight, outwidth, outchannels, outdepth, sizeof(outdata[0]));
+
+    CvMat old_matrix = outputMatrix;
+    printf("%f\n", CV_MAT_ELEM(old_matrix, float, 240, 320));
+//    printf("%d %d\n", height, width);
+    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
+                if (CV_MAT_ELEM(old_matrix, float, i, j) > 100000.f) {
+//                    printf("%f\n", CV_MAT_ELEM(old_matrix, float, i, j));
+                    CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
+                } else {
+                    CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
+                }
+            }
+
+//    double min, max;
+//    minMaxLoc(outputMatrix, &min, &max);
+//    minMaxLoc(const SparseMat& src, double* minVal, double* maxVal);
+//    printf("min: %f\tmax: %f\n", min, max);
+
+    outFrame = outputMatrix;
+    return;
+}
+
+void Gesture::applySkin3(void) {
+    Mat frameMatrix = cvarrToMat(frame);
+    // Separate channels into single channel float matrices
+    vector<Mat> rgb;
+    split(frameMatrix, rgb);
+    Mat rFloat, gFloat, bFloat;
+    rgb[0].convertTo(rFloat, CV_32FC1, 1.0, 0);
+    rgb[1].convertTo(gFloat, CV_32FC1, 1.0, 0);
+    rgb[2].convertTo(bFloat, CV_32FC1, 1.0, 0);
+    // Compute chromacity for r and g
+    Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, bChrom, bChromV, rGauss, gGauss, bGauss, d, expTerm, outMatrix;
+    add(rFloat, gFloat, temp1);
+    add(temp1, bFloat, temp2);
+    add(temp2, Scalar(1.0), denom);
+    divide(rFloat, denom, rChrom);
+    divide(gFloat, denom, gChrom);
+    divide(bFloat, denom, bChrom);
+    // Compute gaussian probability pixel is on hand
+    rChromV = rChrom.reshape(0, 1);
+    gChromV = gChrom.reshape(0, 1);
+    bChromV = bChrom.reshape(0, 1);
+    // (X-U)T
+    subtract(rChromV, Scalar(R_CH_MEAN), temp1);
+    // * S-1
+    multiply(temp1, Scalar(R_CH_VAR_INV), temp2);
+    // * (X-U)
+    rGauss = temp2.mul(rChromV);
+    // g
+    subtract(gChromV, Scalar(G_CH_MEAN), temp1);
+    multiply(temp1, Scalar(G_CH_VAR_INV), temp2);
+    gGauss = temp2.mul(gChromV);
+    add(rGauss, gGauss, d);
+    // b
+    subtract(bChromV, Scalar(B_CH_MEAN), temp1);
+    multiply(temp1, Scalar(B_CH_VAR_INV), temp2);
+    bGauss = temp2.mul(bChromV);
+    add(d, bGauss, d);
+    multiply(d, Scalar(-0.5), expTerm);
+    exp(expTerm, outputMatrix);
+    outputMatrix = outputMatrix.reshape(0, 480);
     
-//    CvMat frameMatrix = cvarrToMat(frame);
-//    CvMat *temp1, *temp2, *temp3, *temp4, *temp5;
-//    subtract(frameMatrix, skinMean, temp1);
-//    transpose(temp1, temp2);
-//    multiply(temp2, skinVarInv, temp3);
-//    multiply(temp3, temp1, temp4);
-//    exp(temp4, postFrame);
+    CvMat old_matrix = outputMatrix;
+    printf("%f\n", CV_MAT_ELEM(old_matrix, float, 240, 320));
+    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
+        if (CV_MAT_ELEM(old_matrix, float, i, j) > 100000.f) {
+            CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
+        } else {
+            CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
+        }
+    }
     
-//    Mat rgT = cvarrToMat(frame).t();
-//    Mat convTest;
-//    rgT.convertTo(convTest, CV_32F, 1.0 / 255, 0);
-//    std::cout << "0. convTest is size " << convTest.rows << "x" << convTest.cols <<"x" << convTest.dims << "\n";
-//    std::cout << "1. frame is size " << rgT.rows << "x" << rgT.cols <<"x" << rgT.dims << "\n";
-//    vector<Mat> rgb;
-//    split(rgT, rgb);
-//    rgb.erase(rgb.begin() + 2);
-//    merge(rgb, rgT);
-//    std::cout << "2. frame is size " << rgT.rows << "x" << rgT.cols <<"x" << rgT.dims << "\n";
-//    rgT = rgT.reshape(0,1);
-//    std::cout << "3. frame is size " << rgT.rows << "x" << rgT.cols <<"x" << rgT.dims << "\n";
-//    
-//    
-//    ///need to normalize rg
-//    // (X-U)'*S^-1*(X-U)
-//    Mat temp1, temp2, temp3, temp4, temp5;
-//    subtract(rgT, skinMeanT, temp3);
-//    transpose(temp3, temp1);
-//    std::cout << "4. temp3 is size " << temp3.rows << "x" << temp3.cols <<"x" << temp3.dims << "\n";
-//    multiply(temp1, skinVarInv, temp2);
-//    std::cout << "5. temp2 is size " << temp2.rows << "x" << temp2.cols <<"x" << temp2.dims << "\n";
-//    multiply(temp2, temp3, temp4);
+    outFrame = outputMatrix;
+    return;
+}
+
+void Gesture::applyChRB(void) {
+    Mat frameMatrix = cvarrToMat(frame);
+    // Separate channels into single channel float matrices
+    vector<Mat> rgb;
+    split(frameMatrix, rgb);
+    Mat rFloat, gFloat, bFloat;
+    rgb[0].convertTo(rFloat, CV_32FC1, 1.0, 0);
+    rgb[1].convertTo(gFloat, CV_32FC1, 1.0, 0);
+    rgb[2].convertTo(bFloat, CV_32FC1, 1.0, 0);
+    // Compute chromacity for r and g
+    Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, bChrom, bChromV, rGauss, gGauss, bGauss, d, expTerm, outMatrix;
+    add(rFloat, gFloat, temp1);
+    add(temp1, bFloat, temp2);
+    add(temp2, Scalar(1.0), denom);
+    divide(rFloat, denom, rChrom);
+    divide(gFloat, denom, gChrom);
+    divide(bFloat, denom, bChrom);
+    // Compute gaussian probability pixel is on hand
+    rChromV = rChrom.reshape(0, 1);
+    gChromV = gChrom.reshape(0, 1);
+    bChromV = bChrom.reshape(0, 1);
+    // r
+    subtract(rChromV, Scalar(R_CH_MEAN), temp1);
+    multiply(temp1, Scalar(R_CH_VAR_INV), temp2);
+    rGauss = temp2.mul(temp1);
+    // b
+    subtract(bChromV, Scalar(B_CH_MEAN), temp1);
+    multiply(temp1, Scalar(B_CH_VAR_INV), temp2);
+    bGauss = temp2.mul(temp1);
+    
+    add(rGauss, bGauss, d);
+    multiply(d, Scalar(-0.5), expTerm);
+    exp(expTerm, outputMatrix);
+    outputMatrix = outputMatrix.reshape(0, 480);
+    
+    CvMat old_matrix = outputMatrix;
+    printf("%f\n", CV_MAT_ELEM(old_matrix, float, 240, 320));
+    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
+        if (CV_MAT_ELEM(old_matrix, float, i, j) > 100000.f) {
+            CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
+        } else {
+            CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
+        }
+    }
+    
+    outFrame = outputMatrix;
+    return;
 }
 
 void Gesture::applyTemplate(void) {
