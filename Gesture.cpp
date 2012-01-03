@@ -56,7 +56,7 @@ Gesture::Gesture(int argc, char** argv) {
         //applyInverse();
         //applyHistory();
         //applyBackground();
-//        applySkin();
+//        applyChRG();
         applyChRB();
 
         if (display) {
@@ -145,7 +145,7 @@ void Gesture::applyBackground(void) {
     return;
 }
 
-void Gesture::applySkin(void) {
+void Gesture::applyChRG(void) {
     Mat frameMatrix = cvarrToMat(frame);
     // Separate channels into single channel float matrices
     vector<Mat> rgb;
@@ -166,50 +166,37 @@ void Gesture::applySkin(void) {
     // Compute gaussian probability pixel is on hand
     rChromV = rChrom.reshape(0, 1);
     gChromV = gChrom.reshape(0, 1);
+    // r
     // (X-U)T
     subtract(rChromV, Scalar(R_CH_MEAN), temp1);
     // * S-1
     multiply(temp1, Scalar(R_CH_VAR_INV), temp2);
-    rGauss = temp2.mul(rChromV);
     // * (X-U)
+    rGauss = temp2.mul(temp1);
+    // g
     subtract(gChromV, Scalar(G_CH_MEAN), temp1);
     multiply(temp1, Scalar(G_CH_VAR_INV), temp2);
-    gGauss = temp2.mul(gChromV);
+    gGauss = temp2.mul(temp1);
     add(rGauss, gGauss, d);
     multiply(d, Scalar(-0.5), expTerm);
     exp(expTerm, outputMatrix);
     outputMatrix = outputMatrix.reshape(0, 480);
-//    outheight = outFrame.height;
-//    outwidth = outFrame.width;
-//    outstep = outFrame.widthStep;
-//    outdepth = outFrame.depth;
-//        outchannels = outFrame.nChannels;
-//    outdata = (uchar *) outFrame.imageData;
-//    printf("size outputMatrix %d %d %d\n", outputMatrix.size().height, outputMatrix.size().width, outputMatrix.channels());
-//    printf("outFrame height %d width %d channels %d depth %d size %ld\n", outheight, outwidth, outchannels, outdepth, sizeof(outdata[0]));
-
+    
     CvMat old_matrix = outputMatrix;
     printf("%f\n", CV_MAT_ELEM(old_matrix, float, 240, 320));
-//    printf("%d %d\n", height, width);
     for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
-                if (CV_MAT_ELEM(old_matrix, float, i, j) > 100000.f) {
-//                    printf("%f\n", CV_MAT_ELEM(old_matrix, float, i, j));
-                    CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
-                } else {
-                    CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
-                }
-            }
-
-//    double min, max;
-//    minMaxLoc(outputMatrix, &min, &max);
-//    minMaxLoc(const SparseMat& src, double* minVal, double* maxVal);
-//    printf("min: %f\tmax: %f\n", min, max);
+        if (CV_MAT_ELEM(old_matrix, float, i, j) < 0.01f) {
+            CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
+        } else {
+            CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
+        }
+    }
 
     outFrame = outputMatrix;
     return;
 }
 
-void Gesture::applySkin3(void) {
+void Gesture::applyChRGB(void) {
     Mat frameMatrix = cvarrToMat(frame);
     // Separate channels into single channel float matrices
     vector<Mat> rgb;
@@ -230,21 +217,19 @@ void Gesture::applySkin3(void) {
     rChromV = rChrom.reshape(0, 1);
     gChromV = gChrom.reshape(0, 1);
     bChromV = bChrom.reshape(0, 1);
-    // (X-U)T
+    // r
     subtract(rChromV, Scalar(R_CH_MEAN), temp1);
-    // * S-1
     multiply(temp1, Scalar(R_CH_VAR_INV), temp2);
-    // * (X-U)
-    rGauss = temp2.mul(rChromV);
+    rGauss = temp2.mul(temp1);
     // g
     subtract(gChromV, Scalar(G_CH_MEAN), temp1);
     multiply(temp1, Scalar(G_CH_VAR_INV), temp2);
-    gGauss = temp2.mul(gChromV);
+    gGauss = temp2.mul(temp1);
     add(rGauss, gGauss, d);
     // b
     subtract(bChromV, Scalar(B_CH_MEAN), temp1);
     multiply(temp1, Scalar(B_CH_VAR_INV), temp2);
-    bGauss = temp2.mul(bChromV);
+    bGauss = temp2.mul(temp1);
     add(d, bGauss, d);
     multiply(d, Scalar(-0.5), expTerm);
     exp(expTerm, outputMatrix);
@@ -253,7 +238,7 @@ void Gesture::applySkin3(void) {
     CvMat old_matrix = outputMatrix;
     printf("%f\n", CV_MAT_ELEM(old_matrix, float, 240, 320));
     for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
-        if (CV_MAT_ELEM(old_matrix, float, i, j) > 100000.f) {
+        if (CV_MAT_ELEM(old_matrix, float, i, j) < 0.01f) {
             CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
         } else {
             CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
@@ -302,7 +287,7 @@ void Gesture::applyChRB(void) {
     CvMat old_matrix = outputMatrix;
     printf("%f\n", CV_MAT_ELEM(old_matrix, float, 240, 320));
     for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
-        if (CV_MAT_ELEM(old_matrix, float, i, j) > 100000.f) {
+        if (CV_MAT_ELEM(old_matrix, float, i, j) < 0.01f) {
             CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
         } else {
             CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;

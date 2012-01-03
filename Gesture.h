@@ -5,15 +5,15 @@ class Gesture {
 public:
     Gesture(int, char **);
 private:
-//    // Brown
-//    // Measured mean chromacity values for red and green
-//    static const float R_CH_MEAN = 0.320960070321339;
-//    static const float G_CH_MEAN = 0.325954943146125;
-//    static const float B_CH_MEAN = 0.349575151609824;
-//    // Measured inverse std dev chromacity values for red and green
-//    static const float R_CH_VAR_INV = 1895.68502175326;
-//    static const float G_CH_VAR_INV = 11778.21112853496;
-//    static const float B_CH_VAR_INV = 1546.59181280968;
+    // Brown
+    // Measured mean chromacity values for red and green
+    static const float R_CH_MEAN = 0.320960070321339;
+    static const float G_CH_MEAN = 0.325954943146125;
+    static const float B_CH_MEAN = 0.349575151609824;
+    // Measured inverse std dev chromacity values for red and green
+    static const float R_CH_VAR_INV = 1895.68502175326;
+    static const float G_CH_VAR_INV = 11778.21112853496;
+    static const float B_CH_VAR_INV = 1546.59181280968;
     
 //    // White
 //    // Measured mean chromacity values for red and green
@@ -25,15 +25,15 @@ private:
 //    static const float G_CH_VAR_INV = 55060.213621839;
 //    static const float B_CH_VAR_INV = 8791.707209565;
     
-    // Blue
-    // Measured mean chromacity values for red and green
-    static const float R_CH_MEAN = 0.272419719355213;
-    static const float G_CH_MEAN = 0.308339748116777;
-    static const float B_CH_MEAN = 0.414705350685427;
-    // Measured inverse std dev chromacity values for red and green   
-    static const float R_CH_VAR_INV = 215.115336202807;
-    static const float G_CH_VAR_INV = 1236.405671747800;
-    static const float B_CH_VAR_INV = 119.176858592746;
+//    // Blue
+//    // Measured mean chromacity values for red and green
+//    static const float R_CH_MEAN = 0.272419719355213;
+//    static const float G_CH_MEAN = 0.308339748116777;
+//    static const float B_CH_MEAN = 0.414705350685427;
+//    // Measured inverse std dev chromacity values for red and green   
+//    static const float R_CH_VAR_INV = 215.115336202807;
+//    static const float G_CH_VAR_INV = 1236.405671747800;
+//    static const float B_CH_VAR_INV = 119.176858592746;
     
 //    // Skin
 //    // Measured mean chromacity values for red and green
@@ -76,8 +76,8 @@ private:
     void applyBackground(void);
     void applyHistory(void);
     void applyTemplate(void);
-    void applySkin(void);
-    void applySkin3(void);
+    void applyChRG(void);
+    void applyChRGB(void);
     void applyChRB(void);
     void applyColorSegmentation(void);
     void calculateCentroid(void);
