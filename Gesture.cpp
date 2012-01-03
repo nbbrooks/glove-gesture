@@ -52,12 +52,16 @@ Gesture::Gesture(int argc, char** argv) {
         //printf("Processing a %ix%i image with step %i and %i channels and size %ld\n",height,width,step,channels,sizeof(frame)); 
 
         display = true;
-        //        nothing();
+//                nothing();
+        applyFlip();
+        applyMedian();
         //applyInverse();
         //applyHistory();
         //applyBackground();
-//        applyChRG();
-        applyChRB();
+//        applyChG();
+        applyChRG();
+//        applyChRB();
+//        applyChRGB();
 
         if (display) {
             cvShowImage("Input", frame);
@@ -77,6 +81,7 @@ Gesture::Gesture(int argc, char** argv) {
         if (firstPass) {
             firstPass = false;
         }
+//        sleep(1);
     }
 
     cvReleaseCapture(&capture);
@@ -93,6 +98,23 @@ void Gesture::nothing(void) {
     //    postFrame = cvCloneImage(frame);
     Mat frameMatrix = cvarrToMat(frame);
     outFrame = frameMatrix;
+    return;
+}
+
+void Gesture::applyFlip(void) {
+    inputMatrix = cvarrToMat(frame);
+    flip(inputMatrix, inputMatrix, 1);
+    return;
+}
+
+void Gesture::applyMedian(void) {
+//    outputMatrix = cvarrToMat(frame).clone();
+//    medianBlur(outputMatrix, outputMatrix, 5);
+//    outFrame = outputMatrix;
+    inputMatrix = cvarrToMat(frame);
+    medianBlur(inputMatrix, inputMatrix, 5);
+//    frame = inputMatrix;
+    return;
 }
 
 void Gesture::applyInverse(void) {
@@ -145,52 +167,196 @@ void Gesture::applyBackground(void) {
     return;
 }
 
+void Gesture::applyChG(void) {
+    Mat frameMatrix = cvarrToMat(frame);
+    // Separate channels into single channel float matrices
+    vector<Mat> rgb;
+    split(frameMatrix, rgb);
+    Mat rFloat, gFloat, bFloat;
+    // BGR ordering
+    rgb[2].convertTo(rFloat, CV_32FC1, 1.0, 0);
+    rgb[1].convertTo(gFloat, CV_32FC1, 1.0, 0);
+    rgb[0].convertTo(bFloat, CV_32FC1, 1.0, 0);
+    // Compute chromacity for r and g
+    Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, bChrom, bChromV, rGauss, gGauss, bGauss, d, expTerm, outMatrix;
+    add(rFloat, gFloat, temp1);
+    add(temp1, bFloat, temp2);
+    add(temp2, Scalar(1.0), denom);
+    divide(rFloat, denom, rChrom);
+    divide(gFloat, denom, gChrom);
+    divide(bFloat, denom, bChrom);
+    printf("%f %f %f\n", 
+            rChrom.at<float>(240, 320), gChrom.at<float>(240, 320), bChrom.at<float>(240, 320));
+
+    // Compute gaussian probability pixel is on hand
+    rChromV = rChrom.reshape(0, 1);
+    gChromV = gChrom.reshape(0, 1);
+    bChromV = bChrom.reshape(0, 1);
+    // r
+    subtract(rChromV, Scalar(R_CH_MEAN), temp1);
+    multiply(temp1, Scalar(R_CH_VAR_INV), temp2);
+//    rGauss = temp2.mul(temp1);
+    // g
+    subtract(gChromV, Scalar(G_CH_MEAN), temp1);
+    multiply(temp1, Scalar(G_CH_VAR_INV), temp2);
+    gGauss = temp2.mul(temp1);
+//    add(rGauss, gGauss, d);
+    // b
+    subtract(bChromV, Scalar(B_CH_MEAN), temp1);
+    multiply(temp1, Scalar(B_CH_VAR_INV), temp2);
+    bGauss = temp2.mul(temp1);
+//    add(d, bGauss, d);
+    
+    multiply(gGauss, Scalar(-0.5), expTerm);
+    exp(expTerm, outputMatrix);
+    outputMatrix = outputMatrix.reshape(0, 480);
+    
+    CvMat in_matrix = frameMatrix;
+    CvMat old_matrix = outputMatrix;
+    printf("%d %d %d: %f\n", 
+            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
+            CV_MAT_ELEM(old_matrix, float, 240, 320));
+    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
+        if (CV_MAT_ELEM(old_matrix, float, i, j) > THRESH) {
+            CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
+        } else {
+            CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
+        }
+    }
+    frameMatrix.at<Vec3b>(240, 320)[2] = 255;
+    frameMatrix.at<Vec3b>(240, 320)[1] = 0;
+    frameMatrix.at<Vec3b>(240, 320)[0] = 0;
+    CV_MAT_ELEM(old_matrix, float, 240, 320) = 128.f;
+
+    outFrame = outputMatrix;
+    return;
+}
+
 void Gesture::applyChRG(void) {
     Mat frameMatrix = cvarrToMat(frame);
     // Separate channels into single channel float matrices
     vector<Mat> rgb;
     split(frameMatrix, rgb);
     Mat rFloat, gFloat, bFloat;
-    rgb[0].convertTo(rFloat, CV_32FC1, 1.0, 0);
+    // BGR ordering
+    rgb[2].convertTo(rFloat, CV_32FC1, 1.0, 0);
     rgb[1].convertTo(gFloat, CV_32FC1, 1.0, 0);
-    rgb[2].convertTo(bFloat, CV_32FC1, 1.0, 0);
-//    printf("size frameMatrix %d %d %d\n", frameMatrix.size().height, frameMatrix.size().width, frameMatrix.channels());
-//    printf("size rFloat %d %d %d\n", rFloat.size().height, rFloat.size().width, rFloat.channels());
+    rgb[0].convertTo(bFloat, CV_32FC1, 1.0, 0);
     // Compute chromacity for r and g
-    Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, rGauss, gGauss, d, expTerm, outMatrix;
+    Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, bChrom, bChromV, rGauss, gGauss, bGauss, d, expTerm, outMatrix;
     add(rFloat, gFloat, temp1);
     add(temp1, bFloat, temp2);
     add(temp2, Scalar(1.0), denom);
     divide(rFloat, denom, rChrom);
     divide(gFloat, denom, gChrom);
+    divide(bFloat, denom, bChrom);
+    printf("%f %f %f\n", 
+            rChrom.at<float>(240, 320), gChrom.at<float>(240, 320), bChrom.at<float>(240, 320));
+
     // Compute gaussian probability pixel is on hand
     rChromV = rChrom.reshape(0, 1);
     gChromV = gChrom.reshape(0, 1);
+    bChromV = bChrom.reshape(0, 1);
     // r
-    // (X-U)T
     subtract(rChromV, Scalar(R_CH_MEAN), temp1);
-    // * S-1
     multiply(temp1, Scalar(R_CH_VAR_INV), temp2);
-    // * (X-U)
     rGauss = temp2.mul(temp1);
     // g
     subtract(gChromV, Scalar(G_CH_MEAN), temp1);
     multiply(temp1, Scalar(G_CH_VAR_INV), temp2);
     gGauss = temp2.mul(temp1);
     add(rGauss, gGauss, d);
+    // b
+    subtract(bChromV, Scalar(B_CH_MEAN), temp1);
+    multiply(temp1, Scalar(B_CH_VAR_INV), temp2);
+    bGauss = temp2.mul(temp1);
+//    add(d, bGauss, d);
+    
     multiply(d, Scalar(-0.5), expTerm);
     exp(expTerm, outputMatrix);
     outputMatrix = outputMatrix.reshape(0, 480);
     
+    CvMat in_matrix = frameMatrix;
     CvMat old_matrix = outputMatrix;
-    printf("%f\n", CV_MAT_ELEM(old_matrix, float, 240, 320));
+    printf("%d %d %d: %f\n", 
+            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
+            CV_MAT_ELEM(old_matrix, float, 240, 320));
     for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
-        if (CV_MAT_ELEM(old_matrix, float, i, j) < 0.01f) {
+        if (CV_MAT_ELEM(old_matrix, float, i, j) > THRESH) {
             CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
         } else {
             CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
         }
     }
+    frameMatrix.at<Vec3b>(240, 320)[2] = 255;
+    frameMatrix.at<Vec3b>(240, 320)[1] = 0;
+    frameMatrix.at<Vec3b>(240, 320)[0] = 0;
+    CV_MAT_ELEM(old_matrix, float, 240, 320) = 128.f;
+
+    outFrame = outputMatrix;
+    return;
+}
+
+void Gesture::applyChRB(void) {
+    Mat frameMatrix = cvarrToMat(frame);
+    // Separate channels into single channel float matrices
+    vector<Mat> rgb;
+    split(frameMatrix, rgb);
+    Mat rFloat, gFloat, bFloat;
+    // BGR ordering
+    rgb[2].convertTo(rFloat, CV_32FC1, 1.0, 0);
+    rgb[1].convertTo(gFloat, CV_32FC1, 1.0, 0);
+    rgb[0].convertTo(bFloat, CV_32FC1, 1.0, 0);
+    // Compute chromacity for r and g
+    Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, bChrom, bChromV, rGauss, gGauss, bGauss, d, expTerm, outMatrix;
+    add(rFloat, gFloat, temp1);
+    add(temp1, bFloat, temp2);
+    add(temp2, Scalar(1.0), denom);
+    divide(rFloat, denom, rChrom);
+    divide(gFloat, denom, gChrom);
+    divide(bFloat, denom, bChrom);
+    printf("%f %f %f\n", 
+            rChrom.at<float>(240, 320), gChrom.at<float>(240, 320), bChrom.at<float>(240, 320));
+
+    // Compute gaussian probability pixel is on hand
+    rChromV = rChrom.reshape(0, 1);
+    gChromV = gChrom.reshape(0, 1);
+    bChromV = bChrom.reshape(0, 1);
+    // r
+    subtract(rChromV, Scalar(R_CH_MEAN), temp1);
+    multiply(temp1, Scalar(R_CH_VAR_INV), temp2);
+    rGauss = temp2.mul(temp1);
+    // g
+    subtract(gChromV, Scalar(G_CH_MEAN), temp1);
+    multiply(temp1, Scalar(G_CH_VAR_INV), temp2);
+    gGauss = temp2.mul(temp1);
+//    add(rGauss, gGauss, d);
+    // b
+    subtract(bChromV, Scalar(B_CH_MEAN), temp1);
+    multiply(temp1, Scalar(B_CH_VAR_INV), temp2);
+    bGauss = temp2.mul(temp1);
+    add(rGauss, bGauss, d);
+    
+    multiply(d, Scalar(-0.5), expTerm);
+    exp(expTerm, outputMatrix);
+    outputMatrix = outputMatrix.reshape(0, 480);
+    
+    CvMat in_matrix = frameMatrix;
+    CvMat old_matrix = outputMatrix;
+    printf("%d %d %d: %f\n", 
+            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
+            CV_MAT_ELEM(old_matrix, float, 240, 320));
+    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
+        if (CV_MAT_ELEM(old_matrix, float, i, j) > THRESH) {
+            CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
+        } else {
+            CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
+        }
+    }
+    frameMatrix.at<Vec3b>(240, 320)[2] = 255;
+    frameMatrix.at<Vec3b>(240, 320)[1] = 0;
+    frameMatrix.at<Vec3b>(240, 320)[0] = 0;
+    CV_MAT_ELEM(old_matrix, float, 240, 320) = 128.f;
 
     outFrame = outputMatrix;
     return;
@@ -202,9 +368,10 @@ void Gesture::applyChRGB(void) {
     vector<Mat> rgb;
     split(frameMatrix, rgb);
     Mat rFloat, gFloat, bFloat;
-    rgb[0].convertTo(rFloat, CV_32FC1, 1.0, 0);
+    // BGR ordering
+    rgb[2].convertTo(rFloat, CV_32FC1, 1.0, 0);
     rgb[1].convertTo(gFloat, CV_32FC1, 1.0, 0);
-    rgb[2].convertTo(bFloat, CV_32FC1, 1.0, 0);
+    rgb[0].convertTo(bFloat, CV_32FC1, 1.0, 0);
     // Compute chromacity for r and g
     Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, bChrom, bChromV, rGauss, gGauss, bGauss, d, expTerm, outMatrix;
     add(rFloat, gFloat, temp1);
@@ -213,6 +380,9 @@ void Gesture::applyChRGB(void) {
     divide(rFloat, denom, rChrom);
     divide(gFloat, denom, gChrom);
     divide(bFloat, denom, bChrom);
+    printf("%f %f %f\n", 
+            rChrom.at<float>(240, 320), gChrom.at<float>(240, 320), bChrom.at<float>(240, 320));
+
     // Compute gaussian probability pixel is on hand
     rChromV = rChrom.reshape(0, 1);
     gChromV = gChrom.reshape(0, 1);
@@ -231,69 +401,28 @@ void Gesture::applyChRGB(void) {
     multiply(temp1, Scalar(B_CH_VAR_INV), temp2);
     bGauss = temp2.mul(temp1);
     add(d, bGauss, d);
+    
     multiply(d, Scalar(-0.5), expTerm);
     exp(expTerm, outputMatrix);
     outputMatrix = outputMatrix.reshape(0, 480);
     
+    CvMat in_matrix = frameMatrix;
     CvMat old_matrix = outputMatrix;
-    printf("%f\n", CV_MAT_ELEM(old_matrix, float, 240, 320));
+    printf("%d %d %d: %f\n", 
+            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
+            CV_MAT_ELEM(old_matrix, float, 240, 320));
     for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
-        if (CV_MAT_ELEM(old_matrix, float, i, j) < 0.01f) {
+        if (CV_MAT_ELEM(old_matrix, float, i, j) > THRESH) {
             CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
         } else {
             CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
         }
     }
-    
-    outFrame = outputMatrix;
-    return;
-}
+    frameMatrix.at<Vec3b>(240, 320)[2] = 255;
+    frameMatrix.at<Vec3b>(240, 320)[1] = 0;
+    frameMatrix.at<Vec3b>(240, 320)[0] = 0;
+    CV_MAT_ELEM(old_matrix, float, 240, 320) = 128.f;
 
-void Gesture::applyChRB(void) {
-    Mat frameMatrix = cvarrToMat(frame);
-    // Separate channels into single channel float matrices
-    vector<Mat> rgb;
-    split(frameMatrix, rgb);
-    Mat rFloat, gFloat, bFloat;
-    rgb[0].convertTo(rFloat, CV_32FC1, 1.0, 0);
-    rgb[1].convertTo(gFloat, CV_32FC1, 1.0, 0);
-    rgb[2].convertTo(bFloat, CV_32FC1, 1.0, 0);
-    // Compute chromacity for r and g
-    Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, bChrom, bChromV, rGauss, gGauss, bGauss, d, expTerm, outMatrix;
-    add(rFloat, gFloat, temp1);
-    add(temp1, bFloat, temp2);
-    add(temp2, Scalar(1.0), denom);
-    divide(rFloat, denom, rChrom);
-    divide(gFloat, denom, gChrom);
-    divide(bFloat, denom, bChrom);
-    // Compute gaussian probability pixel is on hand
-    rChromV = rChrom.reshape(0, 1);
-    gChromV = gChrom.reshape(0, 1);
-    bChromV = bChrom.reshape(0, 1);
-    // r
-    subtract(rChromV, Scalar(R_CH_MEAN), temp1);
-    multiply(temp1, Scalar(R_CH_VAR_INV), temp2);
-    rGauss = temp2.mul(temp1);
-    // b
-    subtract(bChromV, Scalar(B_CH_MEAN), temp1);
-    multiply(temp1, Scalar(B_CH_VAR_INV), temp2);
-    bGauss = temp2.mul(temp1);
-    
-    add(rGauss, bGauss, d);
-    multiply(d, Scalar(-0.5), expTerm);
-    exp(expTerm, outputMatrix);
-    outputMatrix = outputMatrix.reshape(0, 480);
-    
-    CvMat old_matrix = outputMatrix;
-    printf("%f\n", CV_MAT_ELEM(old_matrix, float, 240, 320));
-    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
-        if (CV_MAT_ELEM(old_matrix, float, i, j) < 0.01f) {
-            CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
-        } else {
-            CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
-        }
-    }
-    
     outFrame = outputMatrix;
     return;
 }

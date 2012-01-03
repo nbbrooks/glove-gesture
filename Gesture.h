@@ -5,54 +5,36 @@ class Gesture {
 public:
     Gesture(int, char **);
 private:
-    // Brown
-    // Measured mean chromacity values for red and green
-    static const float R_CH_MEAN = 0.320960070321339;
-    static const float G_CH_MEAN = 0.325954943146125;
-    static const float B_CH_MEAN = 0.349575151609824;
-    // Measured inverse std dev chromacity values for red and green
-    static const float R_CH_VAR_INV = 1895.68502175326;
-    static const float G_CH_VAR_INV = 11778.21112853496;
-    static const float B_CH_VAR_INV = 1546.59181280968;
-    
-//    // White
+    static const float THRESH = 0.1f;
+//    // Pink
 //    // Measured mean chromacity values for red and green
-//    static const float R_CH_MEAN = 0.331195010538250;
-//    static const float G_CH_MEAN = 0.332107007988018;
-//    static const float B_CH_MEAN = 0.334478031541126;
-//    // Measured inverse std dev chromacity values for red and green   
-//    static const float R_CH_VAR_INV = 10910.955085804;
-//    static const float G_CH_VAR_INV = 55060.213621839;
-//    static const float B_CH_VAR_INV = 8791.707209565;
-    
-//    // Blue
-//    // Measured mean chromacity values for red and green
-//    static const float R_CH_MEAN = 0.272419719355213;
-//    static const float G_CH_MEAN = 0.308339748116777;
-//    static const float B_CH_MEAN = 0.414705350685427;
-//    // Measured inverse std dev chromacity values for red and green   
-//    static const float R_CH_VAR_INV = 215.115336202807;
-//    static const float G_CH_VAR_INV = 1236.405671747800;
-//    static const float B_CH_VAR_INV = 119.176858592746;
-    
-//    // Skin
-//    // Measured mean chromacity values for red and green
-//    static const float R_CH_MEAN = 0.338260695104704;
-//    static const float G_CH_MEAN = 0.319846092373669;
-//    static const float B_CH_MEAN = 0.338931199942906;
-//    // Measured inverse std dev chromacity values for red and green   
-//    static const float R_CH_VAR_INV = 3851.96600707512;
-//    static const float G_CH_VAR_INV = 5117.49006335319;
-//    static const float B_CH_VAR_INV = 4196.26456951586;
-    
-//    // Measured mean chromacity values for red and green
-//    static const float R_CH_MEAN = 0.3067;
-//    static const float G_CH_MEAN = 0.2911;
-//    static const float B_CH_MEAN = 0.0;
+//    static const float R_CH_MEAN = 0.413464326726511;
+//    static const float G_CH_MEAN = 0.233825410563608;
+//    static const float B_CH_MEAN = 0.350683233395741;
 //    // Measured inverse std dev chromacity values for red and green
-//    static const float R_CH_VAR_INV = 680.2268;
-//    static const float G_CH_VAR_INV = 135.4993;
-//    static const float B_CH_VAR_INV = 0.0;
+//    static const float R_CH_VAR_INV = 12856.5616746348;
+//    static const float G_CH_VAR_INV = 17661.0926174714;
+//    static const float B_CH_VAR_INV = 35748.0113745476;
+    
+//    // Green
+//    // Measured mean chromacity values for red and green
+//    static const float R_CH_MEAN = 0.279745482824469;
+//    static const float G_CH_MEAN = 0.389173827230952;
+//    static const float B_CH_MEAN = 0.328717603989065;
+//    // Measured inverse std dev chromacity values for red and green
+//    static const float R_CH_VAR_INV = 27548.0876730553;
+//    static const float G_CH_VAR_INV = 14208.2089616912;
+//    static const float B_CH_VAR_INV = 23977.4250454378;
+    
+    // Yellow
+    // Measured mean chromacity values for red and green
+    static const float R_CH_MEAN = 0.365420145384165;
+    static const float G_CH_MEAN = 0.368234741618961;
+    static const float B_CH_MEAN = 0.264019571080339;
+    // Measured inverse std dev chromacity values for red and green
+    static const float R_CH_VAR_INV = 30183.45063686865;
+    static const float G_CH_VAR_INV = 27203.35932348270;
+    static const float B_CH_VAR_INV = 10423.22968747357;
         
     IplImage* frame;
     IplImage* prevFrame;
@@ -68,17 +50,20 @@ private:
     uchar *outdata;
     int i, j, k;
     bool firstPass, display;
-    Mat skinMeanT, skinVarInv, outputMatrix;
+    Mat skinMeanT, skinVarInv, inputMatrix, outputMatrix;
 //    Mat skinVarInv(2, 2, CV_8UC2, );
     
     void nothing(void);
+    void applyFlip(void);
+    void applyMedian(void);
     void applyInverse(void);
     void applyBackground(void);
     void applyHistory(void);
     void applyTemplate(void);
+    void applyChG(void);
     void applyChRG(void);
-    void applyChRGB(void);
     void applyChRB(void);
+    void applyChRGB(void);
     void applyColorSegmentation(void);
     void calculateCentroid(void);
     void calculate(void);
