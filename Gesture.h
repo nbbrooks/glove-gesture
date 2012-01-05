@@ -6,6 +6,8 @@ public:
     Gesture(int, char **);
 private:
     static const float THRESH = 0.1f;
+    static const double THRESH_Y = 0.1;
+    static const double THRESH_G = 0.1;
 //    // Pink
 //    // Measured mean chromacity values for red and green
 //    static const float R_CH_MEAN = 0.413464326726511;

@@ -276,22 +276,23 @@ void Gesture::applyChRG(void) {
     exp(expTerm, outputMatrix);
     outputMatrix = outputMatrix.reshape(0, 480);
     
-    CvMat in_matrix = frameMatrix;
-    CvMat old_matrix = outputMatrix;
-    printf("%d %d %d: %f\n", 
-            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
-            CV_MAT_ELEM(old_matrix, float, 240, 320));
-    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
-        if (CV_MAT_ELEM(old_matrix, float, i, j) > THRESH) {
-            CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
-        } else {
-            CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
-        }
-    }
-    frameMatrix.at<Vec3b>(240, 320)[2] = 255;
-    frameMatrix.at<Vec3b>(240, 320)[1] = 0;
-    frameMatrix.at<Vec3b>(240, 320)[0] = 0;
-    CV_MAT_ELEM(old_matrix, float, 240, 320) = 128.f;
+//    CvMat in_matrix = frameMatrix;
+//    CvMat old_matrix = outputMatrix;
+//    printf("%d %d %d: %f\n", 
+//            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
+//            CV_MAT_ELEM(old_matrix, float, 240, 320));
+//    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
+//        if (CV_MAT_ELEM(old_matrix, float, i, j) > THRESH) {
+//            CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
+//        } else {
+//            CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
+//        }
+//    }
+//    frameMatrix.at<Vec3b>(240, 320)[2] = 255;
+//    frameMatrix.at<Vec3b>(240, 320)[1] = 0;
+//    frameMatrix.at<Vec3b>(240, 320)[0] = 0;
+//    CV_MAT_ELEM(old_matrix, float, 240, 320) = 128.f;
+    threshold(outputMatrix, outputMatrix, THRESH, 255, THRESH_BINARY);
 
     outFrame = outputMatrix;
     return;
