@@ -52,7 +52,7 @@ Gesture::Gesture(int argc, char** argv) {
         display = true;
         nothing(frameMatrix, outputMatrix);
         applyFlip(frameMatrix, frameMatrix);
-//        applyMedian(inputMatrix, inputMatrix);
+        applyMedian(frameMatrix, frameMatrix);
 //        applyInverse(frameMatrix, frameMatrix);
 //        applyHistory(frameMatrix, prevFrame, outputMatrix);
         applyChRG(frameMatrix, yellowMatrix, R_CH_MEAN_Y, G_CH_MEAN_Y, R_CH_VAR_INV_Y, G_CH_VAR_INV_Y, THRESH_Y);
