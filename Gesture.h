@@ -5,47 +5,49 @@ class Gesture {
 public:
     Gesture(int, char **);
 private:
-    static const double THRESH_Y = 0.1;
+    static const double THRESH_R = 0.005;
     static const double THRESH_G = 0.1;
-//    static const double THRESH_Y = 0.75;
-//    static const double THRESH_G = 0.75;
-    // Pink
-    // Measured mean chromacity values for red and green
-    static const double R_CH_MEAN_P = 0.413464326726511;
-    static const double G_CH_MEAN_P = 0.233825410563608;
-    static const double B_CH_MEAN_P = 0.350683233395741;
-    // Measured inverse std dev chromacity values for red and green
-    static const double R_CH_VAR_INV_P = 12856.5616746348;
-    static const double G_CH_VAR_INV_P = 17661.0926174714;
-    static const double B_CH_VAR_INV_P = 35748.0113745476;
+    static const double THRESH_B = 0.005;
     
-    // Green
-    static const double R_CH_MEAN_G = 0.256180986876333; //0.279745482824469;
-    static const double G_CH_MEAN_G = 0.426178577031684; //0.389173827230952;
-    static const double B_CH_MEAN_G = 0.315288620706374; //0.328717603989065;
-    static const double R_CH_VAR_INV_G = 9566.59744933743; //27548.0876730553;
-    static const double G_CH_VAR_INV_G = 8209.53372748956; //14208.2089616912;
-    static const double B_CH_VAR_INV_G = 9736.21154743341; //23977.4250454378;
-//    static const double R_CH_MEAN_G = 0.287164;
-//    static const double G_CH_MEAN_G = 0.399463;
-//    static const double B_CH_MEAN_G = 0.311769;
-//    static const double R_CH_VAR_INV_G = 1361.386893;
-//    static const double G_CH_VAR_INV_G = 720.537663;
-//    static const double B_CH_VAR_INV_G = 2997.252804;
+    static const double R_CH_MEAN_R = 0.433882;
+    static const double G_CH_MEAN_R = 0.278347;
+    static const double B_CH_MEAN_R = 0.285490;
+    static const double R_CH_VAR_INV_R = 10433.009987;
+    static const double G_CH_VAR_INV_R = 74382.599499;
+    static const double B_CH_VAR_INV_R = 15499.491534;
     
-    // Yellow
-    static const double R_CH_MEAN_Y = 0.370424749674244; //0.365420145384165;
-    static const double G_CH_MEAN_Y = 0.389760396043991; //0.368234741618961;
-    static const double B_CH_MEAN_Y = 0.237515614743063; //0.264019571080339;
-    static const double R_CH_VAR_INV_Y = 13177.31862573654; //30183.45063686865;
-    static const double G_CH_VAR_INV_Y = 16948.79514704690; //27203.35932348270;
-    static const double B_CH_VAR_INV_Y = 6433.35013857765; //10423.22968747357;
-//    static const double R_CH_MEAN_Y = 0.345987;
-//    static const double G_CH_MEAN_Y = 0.361636;
-//    static const double B_CH_MEAN_Y = 0.290413;
-//    static const double R_CH_VAR_INV_Y = 1628.311875;
-//    static const double G_CH_VAR_INV_Y = 743.681944;
-//    static const double B_CH_VAR_INV_Y = 283.452942;
+    static const double R_CH_MEAN_G = 0.240018;
+    static const double G_CH_MEAN_G = 0.398915;
+    static const double B_CH_MEAN_G = 0.359266;
+    static const double R_CH_VAR_INV_G = 2712.172340;
+    static const double G_CH_VAR_INV_G = 5224.780428;
+    static const double B_CH_VAR_INV_G = 19822.026776;
+    
+    static const double R_CH_MEAN_B = 0.257304;
+    static const double G_CH_MEAN_B = 0.341129;
+    static const double B_CH_MEAN_B = 0.399796;
+    static const double R_CH_VAR_INV_B = 49091.921348;
+    static const double G_CH_VAR_INV_B = 113525.317156;
+    static const double B_CH_VAR_INV_B = 55267.706807;
+    
+    // Blue
+    static const double H_MIN_B = 100.851064;
+    static const double H_MAX_B = 105.851064;
+//    static const double H_MAX_B = 110.851064;
+//    static const double H_MIN_B = 110.851064;
+//    static const double H_MAX_B = 115.500000;
+    static const double S_MIN_B = 46.130653;
+    static const double S_MAX_B = 139.329897;
+    static const double V_MIN_B = 191.000000;
+    static const double V_MAX_B = 218.000000;
+    
+    // Red
+    static const double H_MIN_R = 168.0000;
+    static const double H_MAX_R = 179.687500;
+    static const double S_MIN_R = 62.943038;
+    static const double S_MAX_R = 143.157895;
+    static const double V_MIN_R = 150.000000;
+    static const double V_MAX_R = 182.000000;
         
     IplImage* frameImage;
     IplImage* prevFrame;
@@ -61,7 +63,7 @@ private:
     uchar *outdata;
     int i, j, k;
     bool firstPass, display;
-    Mat frameMatrix, colorMeanT, colorVarInv, inputMatrix, outputMatrix, yellowMatrix, greenMatrix, tempMatrix;
+    Mat frameMatrix, colorMeanT, colorVarInv, inputMatrix, outputMatrix, redMatrix, greenMatrix, blueMatrix, tempMatrix, templateImage;
     
     void nothing(const Mat& src, Mat& dst);
     void applyFlip(const Mat& src, Mat& dst);
@@ -71,4 +73,7 @@ private:
     void applyChRG(const Mat& src, Mat& dst, double rMean, double gMean, double rSDI, double gSDI, double thresh);
     void applyChRB(const Mat& src, Mat& dst, double rMean, double bMean, double rSDI, double bSDI, double thresh);
     void applyChRGB(const Mat& src, Mat& dst, double rMean, double gMean, double bMean, double rSDI, double gSDI, double bSDI, double thresh);
+    void applyGaussHSV(const Mat& src, Mat& dst, double hMean, double sMean, double vMean, double hSDI, double sSDI, double vSDI, double thresh);
+    void applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, double sMin, double sMax, double vMin, double vMax);
+    void circles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ);
 };

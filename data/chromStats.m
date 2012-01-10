@@ -1,6 +1,6 @@
-function pos(file, color)
+function chromStats(file, color)
 small=double(imread(file));
-i=find(small(:,:,2) < 255);
+i=find(small(:,:,1) ~= 255 & small(:,:,2) ~=255 & small(:,:,3) ~= 255);
 [r,c,d]=ind2sub(size(small),i);
 rgb=[];
 rgbCh=[];
@@ -11,15 +11,9 @@ for i=1:size(r,1)
     rgbCh(i,2)=small(r(i),c(i),2) ./ denom;
     rgbCh(i,3)=small(r(i),c(i),3) ./ denom;
 end
-%mean(rgb)
-%cov(rgb)
-%mean(rgbCh)
-%cov(rgbCh)
-%1./cov(rgbCh)
 avg=mean(rgbCh);
 sdi=1./cov(rgbCh);
 
-%format long g;
 fprintf('    static const double R_CH_MEAN_%s = %f;\n', color, avg(1));
 fprintf('    static const double G_CH_MEAN_%s = %f;\n', color, avg(2));
 fprintf('    static const double B_CH_MEAN_%s = %f;\n', color, avg(3));
