@@ -29,12 +29,51 @@ Gesture::Gesture(int argc, char** argv) {
         return;
     }
 
-    printf("Hot keys: \n\tESC - quit the program\n");
-    printf("\ts   - save current input frame\n");
+    fprintf(stderr, "CV_8UC1 is %d\n", CV_8UC1);
+    fprintf(stderr, "CV_8UC2 is %d\n", CV_8UC2);
+    fprintf(stderr, "CV_8UC3 is %d\n", CV_8UC3);
+    fprintf(stderr, "CV_8UC4 is %d\n", CV_8UC4);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "CV_8SC1 is %d\n", CV_8SC1);
+    fprintf(stderr, "CV_8SC2 is %d\n", CV_8SC2);
+    fprintf(stderr, "CV_8SC3 is %d\n", CV_8SC3);
+    fprintf(stderr, "CV_8SC4 is %d\n", CV_8SC4);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "CV_16UC1 is %d\n", CV_16UC1);
+    fprintf(stderr, "CV_16UC2 is %d\n", CV_16UC2);
+    fprintf(stderr, "CV_16UC3 is %d\n", CV_16UC3);
+    fprintf(stderr, "CV_16UC4 is %d\n", CV_16UC4);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "CV_16SC1 is %d\n", CV_16SC1);
+    fprintf(stderr, "CV_16SC2 is %d\n", CV_16SC2);
+    fprintf(stderr, "CV_16SC3 is %d\n", CV_16SC3);
+    fprintf(stderr, "CV_16SC4 is %d\n", CV_16SC4);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "CV_32SC1 is %d\n", CV_32SC1);
+    fprintf(stderr, "CV_32SC2 is %d\n", CV_32SC2);
+    fprintf(stderr, "CV_32SC3 is %d\n", CV_32SC3);
+    fprintf(stderr, "CV_32SC4 is %d\n", CV_32SC4);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "CV_32FC1 is %d\n", CV_32FC1);
+    fprintf(stderr, "CV_32FC2 is %d\n", CV_32FC2);
+    fprintf(stderr, "CV_32FC3 is %d\n", CV_32FC3);
+    fprintf(stderr, "CV_32FC4 is %d\n", CV_32FC4);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "CV_64FC1 is %d\n", CV_64FC1);
+    fprintf(stderr, "CV_64FC2 is %d\n", CV_64FC2);
+    fprintf(stderr, "CV_64FC3 is %d\n", CV_64FC3);
+    fprintf(stderr, "CV_64FC4 is %d\n", CV_64FC4);
+    
+    fprintf(stderr, "Hot keys: \n\tESC - quit the program\n");
+    fprintf(stderr, "\ts   - save current input frame\n");
 
     cvNamedWindow("Input", CV_WINDOW_AUTOSIZE);
     cvNamedWindow("Output", CV_WINDOW_AUTOSIZE);
-    templateImage = imread("template.ppm", 1 );
+    
+    // Load binary template
+    tempMatrix = imread("template.ppm", 1 );
+    cvtColor(tempMatrix, templateImage, CV_RGB2GRAY);
+    printInfo(templateImage);
 
     for (;;) {
         frameImage = 0;
@@ -50,7 +89,7 @@ Gesture::Gesture(int argc, char** argv) {
         channels = frameImage->nChannels;
         data = (uchar *) frameImage->imageData;
         frameMatrix = cvarrToMat(frameImage);
-
+        
         display = true;
         //        nothing(frameMatrix, outputMatrix);
         applyFlip(frameMatrix, frameMatrix);
@@ -73,17 +112,17 @@ Gesture::Gesture(int argc, char** argv) {
         //        Mat blueMatrix(greenMatrix.rows, greenMatrix.cols, CV_32FC1, Scalar(0));
         vector<Mat> bgr;
         // BGR ordering!!!
-        //        printf("redMatrix: %d %d %d %d\n", redMatrix.rows, redMatrix.cols, redMatrix.depth(), redMatrix.type());
-        //        printf("greenMatrix: %d %d %d %d\n", greenMatrix.rows, greenMatrix.cols, greenMatrix.depth(), greenMatrix.type());
-        //        printf("blueMatrix: %d %d %d %d\n", blueMatrix.rows, blueMatrix.cols, blueMatrix.depth(), blueMatrix.type());
+        //        fprintf(stderr, "redMatrix: %d %d %d %d\n", redMatrix.rows, redMatrix.cols, redMatrix.depth(), redMatrix.type());
+        //        fprintf(stderr, "greenMatrix: %d %d %d %d\n", greenMatrix.rows, greenMatrix.cols, greenMatrix.depth(), greenMatrix.type());
+        //        fprintf(stderr, "blueMatrix: %d %d %d %d\n", blueMatrix.rows, blueMatrix.cols, blueMatrix.depth(), blueMatrix.type());
         bgr.push_back(blueMatrix);
         bgr.push_back(greenMatrix);
         bgr.push_back(redMatrix);
         merge(bgr, outputMatrix);
-//        circles(redMatrix, tempMatrix, frameMatrix, templateImage);
+        circles(redMatrix, outputMatrix, frameMatrix, templateImage);
 
         outImage = outputMatrix;
-        //        printf("output: %d %d %d %d\n", outImage.height, outImage.width, outImage.nChannels, outImage.depth);
+        //        fprintf(stderr, "output: %d %d %d %d\n", outImage.height, outImage.width, outImage.nChannels, outImage.depth);
 
         if (display) {
             cvShowImage("Input", frameImage);
@@ -176,7 +215,7 @@ void Gesture::applyChRG(const Mat& src, Mat& dst, double rMean, double gMean, do
     divide(rFloat, denom, rChrom);
     divide(gFloat, denom, gChrom);
     divide(bFloat, denom, bChrom);
-    //    printf("%f %f %f\n", 
+    //    fprintf(stderr, "%f %f %f\n", 
     //            rChrom.at<float>(240, 320), gChrom.at<float>(240, 320), bChrom.at<float>(240, 320));
 
     // Compute gaussian probability pixel is on hand
@@ -199,7 +238,7 @@ void Gesture::applyChRG(const Mat& src, Mat& dst, double rMean, double gMean, do
 
     //    CvMat in_matrix = frameMatrix;
     //    CvMat old_matrix = outputMatrix;
-    //    printf("%d %d %d: %f\n", 
+    //    fprintf(stderr, "%d %d %d: %f\n", 
     //            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
     //            CV_MAT_ELEM(old_matrix, float, 240, 320));
     //    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
@@ -235,7 +274,7 @@ void Gesture::applyChRB(const Mat& src, Mat& dst, double rMean, double bMean, do
     divide(rFloat, denom, rChrom);
     divide(gFloat, denom, gChrom);
     divide(bFloat, denom, bChrom);
-    //    printf("%f %f %f\n", 
+    //    fprintf(stderr, "%f %f %f\n", 
     //            rChrom.at<float>(240, 320), gChrom.at<float>(240, 320), bChrom.at<float>(240, 320));
 
     // Compute gaussian probability pixel is on hand
@@ -258,7 +297,7 @@ void Gesture::applyChRB(const Mat& src, Mat& dst, double rMean, double bMean, do
 
     //    CvMat in_matrix = frameMatrix;
     //    CvMat old_matrix = outputMatrix;
-    //    printf("%d %d %d: %f\n", 
+    //    fprintf(stderr, "%d %d %d: %f\n", 
     //            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
     //            CV_MAT_ELEM(old_matrix, float, 240, 320));
     //    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
@@ -294,7 +333,7 @@ void Gesture::applyChRGB(const Mat& src, Mat& dst, double rMean, double gMean, d
     divide(rFloat, denom, rChrom);
     divide(gFloat, denom, gChrom);
     divide(bFloat, denom, bChrom);
-    //    printf("%f %f %f\n", 
+    //    fprintf(stderr, "%f %f %f\n", 
     //            rChrom.at<float>(240, 320), gChrom.at<float>(240, 320), bChrom.at<float>(240, 320));
 
     // Compute gaussian probability pixel is on hand
@@ -322,7 +361,7 @@ void Gesture::applyChRGB(const Mat& src, Mat& dst, double rMean, double gMean, d
 
     //    CvMat in_matrix = frameMatrix;
     //    CvMat old_matrix = outputMatrix;
-    //    printf("%d %d %d: %f\n", 
+    //    fprintf(stderr, "%d %d %d: %f\n", 
     //            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
     //            CV_MAT_ELEM(old_matrix, float, 240, 320));
     //    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
@@ -414,19 +453,14 @@ void Gesture::applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, 
 }
 
 void Gesture::circles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ) {
-    std::cout<<"cirlces\n";
 //    int result_cols = src.cols - templ.cols + 1;
 //    int result_rows = src.rows - templ.rows + 1;
 //    dst.create(result_cols, result_rows, CV_32FC1);
+    
     /// Do the Matching and Normalize
     int method = CV_TM_SQDIFF;
-    src.convertTo(dst, CV_8U, 1.0, 0);
-    templ.convertTo(templ, CV_8U, 1.0, 0);
-    std::cout<<"matchTemplate\n";
-    printf("dst: %d %d %d %d\n", dst.rows, dst.cols, dst.depth(), dst.type());
-    printf("templ: %d %d %d %d\n", templ.rows, templ.cols, templ.depth(), templ.type());
-    matchTemplate(dst, templ, dst, method);
-//    normalize(dst, dst, 0, 1, NORM_MINMAX, -1, Mat());
+    matchTemplate(src, templ, dst, method);
+    normalize(dst, dst, 0, 1, NORM_MINMAX, -1, Mat());
 
     /// Localizing the best match with minMaxLoc
     double minVal;
@@ -435,7 +469,6 @@ void Gesture::circles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ) {
     Point maxLoc;
     Point matchLoc;
 
-    std::cout<<"minMaxLoc\n";
     minMaxLoc(dst, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 
     /// For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
@@ -445,49 +478,13 @@ void Gesture::circles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ) {
         matchLoc = maxLoc;
     }
 
-    std::cout<<"rectangle\n";
-    /// Show me what you got
+    // Draw rectangles in original frame at max location
     rectangle(frameMatrix, matchLoc, Point(matchLoc.x + templ.cols, matchLoc.y + templ.rows), Scalar::all(0), 2, 8, 0);
-//    rectangle(result, matchLoc, Point(matchLoc.x + templ.cols, matchLoc.y + templ.rows), Scalar::all(0), 2, 8, 0);
+    
+//    float thresh = 0.75;
+//    threshold(dst, dst, thresh, 255, THRESH_BINARY);
 }
 
-//void MatchingMethod(int, void*) {
-//    /// Source image to display
-//    Mat img_display;
-//    img.copyTo(img_display);
-//
-//    /// Create the result matrix
-//    int result_cols = img.cols - templ.cols + 1;
-//    int result_rows = img.rows - templ.rows + 1;
-//
-//    result.create(result_cols, result_rows, CV_32FC1);
-//
-//    /// Do the Matching and Normalize
-//    matchTemplate(img, templ, result, match_method);
-//    normalize(result, result, 0, 1, NORM_MINMAX, -1, Mat());
-//
-//    /// Localizing the best match with minMaxLoc
-//    double minVal;
-//    double maxVal;
-//    Point minLoc;
-//    Point maxLoc;
-//    Point matchLoc;
-//
-//    minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
-//
-//    /// For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
-//    if (match_method == CV_TM_SQDIFF || match_method == CV_TM_SQDIFF_NORMED) {
-//        matchLoc = minLoc;
-//    } else {
-//        matchLoc = maxLoc;
-//    }
-//
-//    /// Show me what you got
-//    rectangle(img_display, matchLoc, Point(matchLoc.x + templ.cols, matchLoc.y + templ.rows), Scalar::all(0), 2, 8, 0);
-//    rectangle(result, matchLoc, Point(matchLoc.x + templ.cols, matchLoc.y + templ.rows), Scalar::all(0), 2, 8, 0);
-//
-//    imshow(image_window, img_display);
-//    imshow(result_window, result);
-//
-//    return;
-//}
+void Gesture::printInfo(const Mat& mat) {
+   fprintf(stderr, "mat: %d %d %d %d %d\n", mat.rows, mat.cols, mat.channels(), mat.depth(), mat.type()); 
+}

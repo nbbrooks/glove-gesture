@@ -76,4 +76,5 @@ private:
     void applyGaussHSV(const Mat& src, Mat& dst, double hMean, double sMean, double vMean, double hSDI, double sSDI, double vSDI, double thresh);
     void applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, double sMin, double sMax, double vMin, double vMax);
     void circles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ);
+    void printInfo(const Mat &mat);
 };
