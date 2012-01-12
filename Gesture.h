@@ -75,6 +75,7 @@ private:
     void applyChRGB(const Mat& src, Mat& dst, double rMean, double gMean, double bMean, double rSDI, double gSDI, double bSDI, double thresh);
     void applyGaussHSV(const Mat& src, Mat& dst, double hMean, double sMean, double vMean, double hSDI, double sSDI, double vSDI, double thresh);
     void applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, double sMin, double sMax, double vMin, double vMax);
-    void circles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ);
+    void templateCircles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ);
+    void houghCircles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ);
     void printInfo(const Mat &mat);
 };

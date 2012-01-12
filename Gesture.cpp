@@ -63,15 +63,15 @@ Gesture::Gesture(int argc, char** argv) {
     fprintf(stderr, "CV_64FC2 is %d\n", CV_64FC2);
     fprintf(stderr, "CV_64FC3 is %d\n", CV_64FC3);
     fprintf(stderr, "CV_64FC4 is %d\n", CV_64FC4);
-    
+
     fprintf(stderr, "Hot keys: \n\tESC - quit the program\n");
     fprintf(stderr, "\ts   - save current input frame\n");
 
     cvNamedWindow("Input", CV_WINDOW_AUTOSIZE);
     cvNamedWindow("Output", CV_WINDOW_AUTOSIZE);
-    
+
     // Load binary template
-    tempMatrix = imread("template.ppm", 1 );
+    tempMatrix = imread("template.ppm", 1);
     cvtColor(tempMatrix, templateImage, CV_RGB2GRAY);
     printInfo(templateImage);
 
@@ -89,7 +89,7 @@ Gesture::Gesture(int argc, char** argv) {
         channels = frameImage->nChannels;
         data = (uchar *) frameImage->imageData;
         frameMatrix = cvarrToMat(frameImage);
-        
+
         display = true;
         //        nothing(frameMatrix, outputMatrix);
         applyFlip(frameMatrix, frameMatrix);
@@ -119,7 +119,8 @@ Gesture::Gesture(int argc, char** argv) {
         bgr.push_back(greenMatrix);
         bgr.push_back(redMatrix);
         merge(bgr, outputMatrix);
-        circles(redMatrix, outputMatrix, frameMatrix, templateImage);
+//        templateCircles(redMatrix, outputMatrix, frameMatrix, templateImage);
+        houghCircles(redMatrix, outputMatrix, frameMatrix, templateImage);
 
         outImage = outputMatrix;
         //        fprintf(stderr, "output: %d %d %d %d\n", outImage.height, outImage.width, outImage.nChannels, outImage.depth);
@@ -452,11 +453,11 @@ void Gesture::applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, 
     return;
 }
 
-void Gesture::circles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ) {
-//    int result_cols = src.cols - templ.cols + 1;
-//    int result_rows = src.rows - templ.rows + 1;
-//    dst.create(result_cols, result_rows, CV_32FC1);
-    
+void Gesture::templateCircles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ) {
+    //    int result_cols = src.cols - templ.cols + 1;
+    //    int result_rows = src.rows - templ.rows + 1;
+    //    dst.create(result_cols, result_rows, CV_32FC1);
+
     /// Do the Matching and Normalize
     int method = CV_TM_SQDIFF;
     matchTemplate(src, templ, dst, method);
@@ -480,11 +481,27 @@ void Gesture::circles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ) {
 
     // Draw rectangles in original frame at max location
     rectangle(frameMatrix, matchLoc, Point(matchLoc.x + templ.cols, matchLoc.y + templ.rows), Scalar::all(0), 2, 8, 0);
-    
-//    float thresh = 0.75;
-//    threshold(dst, dst, thresh, 255, THRESH_BINARY);
+
+    //    float thresh = 0.75;
+    //    threshold(dst, dst, thresh, 255, THRESH_BINARY);
+}
+
+void Gesture::houghCircles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ) {
+    // smooth it, otherwise a lot of false circles may be detected
+    GaussianBlur(src, dst, Size(9, 9), 2, 2);
+    vector<Vec3f> circles;
+    HoughCircles(dst, circles, CV_HOUGH_GRADIENT, 2, 50, 200, 100);
+    for (size_t i = 0; i < circles.size(); i++) {
+        Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
+        int radius = cvRound(circles[i][2]);
+        // draw the circle center
+        circle(frameMatrix, center, 3, Scalar(0, 255, 0), -1, 8, 0);
+        // draw the circle outline
+        circle(frameMatrix, center, radius, Scalar(0, 0, 255), 3, 8, 0);
+    }
+    fprintf(stderr, "Found %ld circles.\n", circles.size());
 }
 
 void Gesture::printInfo(const Mat& mat) {
-   fprintf(stderr, "mat: %d %d %d %d %d\n", mat.rows, mat.cols, mat.channels(), mat.depth(), mat.type()); 
+    fprintf(stderr, "mat: %d %d %d %d %d\n", mat.rows, mat.cols, mat.channels(), mat.depth(), mat.type());
 }
