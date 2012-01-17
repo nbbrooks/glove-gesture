@@ -15,12 +15,65 @@ int main(int argc, char** argv) {
 }
 
 Gesture::Gesture(int argc, char** argv) {
+    int c;
+    std::cout << "argc is " << argc << std::endl;
+
+    if (argc == 2) {
+        // Process image
+        cvNamedWindow("Input", CV_WINDOW_AUTOSIZE);
+        cvNamedWindow("Process", CV_WINDOW_AUTOSIZE);
+        cvNamedWindow("Output", CV_WINDOW_AUTOSIZE);
+
+        std::cout << "File is " << argv[1] << std::endl;
+        frameImage = cvLoadImage(argv[1]);
+        frameMatrix = cvarrToMat(frameImage);
+        cvShowImage("Input", frameImage);
+
+        // Load binary template
+        templateMatrix = imread("template-32.ppm", 0);
+
+        GaussianBlur(frameMatrix, frameMatrix, Size(9, 9), 1, 1);
+        cvtColor(frameMatrix, hsvMatrix, CV_BGR2HSV);
+        applyTableHSV(frameMatrix, greenMatrix, H_MIN_G, H_MAX_G, S_MIN_G, S_MAX_G, V_MIN_G, V_MAX_G);
+        applyTableHSV(frameMatrix, tempMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, V_MIN_R1, V_MAX_R1);
+        applyTableHSV(frameMatrix, redMatrix, H_MIN_R2, H_MAX_R2, S_MIN_R2, S_MAX_R2, V_MIN_R2, V_MAX_R2);
+        add(tempMatrix, redMatrix, redMatrix);
+
+        Mat blueMatrix(greenMatrix.rows, greenMatrix.cols, greenMatrix.type(), Scalar(0));
+        vector<Mat> bgr;
+        bgr.push_back(blueMatrix);
+        bgr.push_back(greenMatrix);
+        bgr.push_back(redMatrix);
+        merge(bgr, tempMatrix);
+        printInfo(tempMatrix);
+        printInfo(redMatrix);
+        printInfo(templateMatrix);
+        tempImage = greenMatrix;
+//        templateCircles(greenMatrix, outputMatrix, frameMatrix, greenMatrix, templateMatrix, THRESH_TEMPLATE_48);
+        templateCircles(redMatrix, outputMatrix, frameMatrix, redMatrix, templateMatrix, THRESH_TEMPLATE_32);
+        //        houghCircles(redMatrix, outputMatrix, frameMatrix, templateMatrix);
+        outImage = outputMatrix;
+
+        cvShowImage("Input", frameImage);
+        cvShowImage("Process", &tempImage);
+        cvShowImage("Output", &outImage);
+        c = cvWaitKey();
+        while ((char) c != 27) {
+            c = cvWaitKey();
+        }
+        cvDestroyWindow("Input");
+        cvDestroyWindow("Process");
+        cvDestroyWindow("Output");
+        return;
+    }
+
+    // Process video
     firstPass = true;
     save = 0;
     CvCapture* capture = 0;
 
     if (argc == 1 || (argc == 2 && strlen(argv[1]) == 1 && isdigit(argv[1][0])))
-        capture = cvCaptureFromCAM(argc == 2 ? argv[1][0] - '0' : 0);
+        capture = cvCaptureFromCAM(argc == 2 ? argv[1][0] - '0' : 1);
     else if (argc == 2)
         capture = cvCaptureFromAVI(argv[1]);
 
@@ -68,32 +121,28 @@ Gesture::Gesture(int argc, char** argv) {
     fprintf(stderr, "\ts   - save current input frame\n");
 
     cvNamedWindow("Input", CV_WINDOW_AUTOSIZE);
+    cvNamedWindow("Process", CV_WINDOW_AUTOSIZE);
     cvNamedWindow("Output", CV_WINDOW_AUTOSIZE);
+    std::stringstream debug;
+    cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX | CV_FONT_ITALIC, hScale, vScale, 0, lineWidth);
 
     // Load binary template
-    tempMatrix = imread("template.ppm", 1);
-    cvtColor(tempMatrix, templateImage, CV_RGB2GRAY);
-    printInfo(templateImage);
+    templateMatrix = imread("template2.ppm", 0);
 
     for (;;) {
         frameImage = 0;
-        int c;
 
         frameImage = cvQueryFrame(capture);
         if (!frameImage)
             break;
-        height = frameImage->height;
-        width = frameImage->width;
-        step = frameImage->widthStep;
-        depth = frameImage->depth;
-        channels = frameImage->nChannels;
-        data = (uchar *) frameImage->imageData;
         frameMatrix = cvarrToMat(frameImage);
+        printInfo(frameMatrix);
 
         display = true;
         //        nothing(frameMatrix, outputMatrix);
         applyFlip(frameMatrix, frameMatrix);
-        applyMedian(frameMatrix, frameMatrix);
+        cvtColor(frameMatrix, hsvMatrix, CV_BGR2HSV);
+        //        applyMedian(frameMatrix, frameMatrix);
         //        applyInverse(frameMatrix, frameMatrix);
         //        applyHistory(frameMatrix, prevFrame, outputMatrix);
         //        applyChRGB(frameMatrix, redMatrix, R_CH_MEAN_R, G_CH_MEAN_R, B_CH_MEAN_R, R_CH_VAR_INV_R, G_CH_VAR_INV_R, B_CH_VAR_INV_R, THRESH_R);
@@ -104,12 +153,15 @@ Gesture::Gesture(int argc, char** argv) {
         //        applyHSV(frameMatrix, redMatrix, H_MEAN_R, S_MEAN_R, V_MEAN_R, H_VAR_INV_R, S_VAR_INV_R, V_VAR_INV_R, THRESH_H);
         //        applyHSV(frameMatrix, greenMatrix, H_MEAN_G, S_MEAN_G, V_MEAN_G, H_VAR_INV_G, S_VAR_INV_G, V_VAR_INV_G, THRESH_S);
         //        applyHSV(frameMatrix, blueMatrix, H_MEAN_B, S_MEAN_B, V_MEAN_B, H_VAR_INV_B, S_VAR_INV_B, V_VAR_INV_B, THRESH_V);
-        applyTableHSV(frameMatrix, blueMatrix, H_MIN_B, H_MAX_B, S_MIN_B, S_MAX_B, V_MIN_B, V_MAX_B);
-        applyTableHSV(frameMatrix, redMatrix, H_MIN_R, H_MAX_R, S_MIN_R, S_MAX_R, V_MIN_R, V_MAX_R);
+        //        applyTableHSV(frameMatrix, blueMatrix, H_MIN_B, H_MAX_B, S_MIN_B, S_MAX_B, V_MIN_B, V_MAX_B);
+        applyTableHSV(frameMatrix, greenMatrix, H_MIN_G, H_MAX_G, S_MIN_G, S_MAX_G, V_MIN_G, V_MAX_G);
+        applyTableHSV(frameMatrix, tempMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, V_MIN_R1, V_MAX_R1);
+        applyTableHSV(frameMatrix, redMatrix, H_MIN_R2, H_MAX_R2, S_MIN_R2, S_MAX_R2, V_MIN_R2, V_MAX_R2);
+        add(tempMatrix, redMatrix, redMatrix);
 
-        //        Mat redMatrix(blueMatrix.rows, blueMatrix.cols, CV_32FC1, Scalar(0));
-        Mat greenMatrix(blueMatrix.rows, blueMatrix.cols, blueMatrix.type(), Scalar(0));
-        //        Mat blueMatrix(greenMatrix.rows, greenMatrix.cols, CV_32FC1, Scalar(0));
+        //        Mat redMatrix(blueMatrix.rows, blueMatrix.cols, blueMatrix.type(), Scalar(0));
+        //        Mat greenMatrix(blueMatrix.rows, blueMatrix.cols, blueMatrix.type(), Scalar(0));
+        Mat blueMatrix(greenMatrix.rows, greenMatrix.cols, greenMatrix.type(), Scalar(0));
         vector<Mat> bgr;
         // BGR ordering!!!
         //        fprintf(stderr, "redMatrix: %d %d %d %d\n", redMatrix.rows, redMatrix.cols, redMatrix.depth(), redMatrix.type());
@@ -118,15 +170,34 @@ Gesture::Gesture(int argc, char** argv) {
         bgr.push_back(blueMatrix);
         bgr.push_back(greenMatrix);
         bgr.push_back(redMatrix);
-        merge(bgr, outputMatrix);
-//        templateCircles(redMatrix, outputMatrix, frameMatrix, templateImage);
-        houghCircles(redMatrix, outputMatrix, frameMatrix, templateImage);
+        merge(bgr, tempMatrix);
+//        templateCircles(greenMatrix, outputMatrix, frameMatrix, greenMatrix, templateMatrix, THRESH_TEMPLATE_48);
+        templateCircles(redMatrix, outputMatrix, frameMatrix, redMatrix, templateMatrix, THRESH_TEMPLATE_48);
+        //        houghCircles(redMatrix, outputMatrix, frameMatrix, templateMatrix);
 
+        debug.str("");
+        debug << (int) (hsvMatrix.at<Vec3b > (240, 320)[0]) << "," <<
+                (int) (hsvMatrix.at<Vec3b > (240, 320)[1]) << "," <<
+                (int) (hsvMatrix.at<Vec3b > (240, 320)[2]);
+        putText(frameMatrix, debug.str(), Point(0, 30), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 0, 255));
+        putText(tempMatrix, debug.str(), Point(0, 30), FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 255, 255));
+        debug.str("");
+        debug << (int) frameMatrix.at<Vec3b > (240, 320)[2] << "," <<
+                (int) frameMatrix.at<Vec3b > (240, 320)[1] << "," <<
+                (int) frameMatrix.at<Vec3b > (240, 320)[0];
+        putText(frameMatrix, debug.str(), Point(0, 60), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 0, 255));
+        putText(tempMatrix, debug.str(), Point(0, 60), FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 255, 255));
+        cross(frameMatrix, 240, 320, 1);
+        cross(tempMatrix, 240, 320, 1);
+
+        tempImage = tempMatrix;
         outImage = outputMatrix;
+
         //        fprintf(stderr, "output: %d %d %d %d\n", outImage.height, outImage.width, outImage.nChannels, outImage.depth);
 
         if (display) {
             cvShowImage("Input", frameImage);
+            cvShowImage("Process", &tempImage);
             cvShowImage("Output", &outImage);
         }
 
@@ -148,6 +219,7 @@ Gesture::Gesture(int argc, char** argv) {
 
     cvReleaseCapture(&capture);
     cvDestroyWindow("Input");
+    cvDestroyWindow("Process");
     cvDestroyWindow("Output");
 
     return;
@@ -169,6 +241,11 @@ void Gesture::applyMedian(const Mat& src, Mat& dst) {
 }
 
 void Gesture::applyInverse(const Mat& src, Mat& dst) {
+    int width = src.cols;
+    int height = src.rows;
+    int channels = src.channels();
+    int depth = src.depth();
+    int step = src.step;
     if (firstPass) {
         postFrame = cvCreateImage(cvSize(width, height), depth, channels);
         postData = (uchar *) postFrame->imageData;
@@ -180,6 +257,9 @@ void Gesture::applyInverse(const Mat& src, Mat& dst) {
 }
 
 void Gesture::applyHistory(const Mat& src, Mat& prev, Mat& dst) {
+    int width = src.cols;
+    int height = src.rows;
+    int depth = src.depth();
     if (firstPass) {
         procFrame = cvCreateImage(cvSize(width, height), depth, 1);
         postFrame = cvCreateImage(cvSize(width, height), depth, 1);
@@ -453,55 +533,87 @@ void Gesture::applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, 
     return;
 }
 
-void Gesture::templateCircles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ) {
-    //    int result_cols = src.cols - templ.cols + 1;
-    //    int result_rows = src.rows - templ.rows + 1;
-    //    dst.create(result_cols, result_rows, CV_32FC1);
+void Gesture::templateCircles(const Mat& src, Mat& dst, Mat& drawMatrix, Mat& procMatrix, Mat& templ, double thresh) {
+    int count = 0;
+//    GaussianBlur(src, dst, Size(9, 9), 1, 1);
+    //    medianBlur(src, dst, 5);
 
     /// Do the Matching and Normalize
-    int method = CV_TM_SQDIFF;
-    matchTemplate(src, templ, dst, method);
-    normalize(dst, dst, 0, 1, NORM_MINMAX, -1, Mat());
+    Mat srcNorm, templateNorm;
+    src.convertTo(srcNorm, CV_32FC1, 1.0 / 255.0, 0);
+    templ.convertTo(templateNorm, CV_32FC1, 1.0 / 255.0, 0);
+//    normalize(src, srcNorm, 0, 1, NORM_MINMAX, -1, Mat());
+//    normalize(templ, templateNorm, 0, 1, NORM_MINMAX, -1, Mat());
+    matchTemplate(srcNorm, templateNorm, dst, CV_TM_SQDIFF);
+    fprintf(stderr, "Template\n");
+    printInfo(src);
+    printInfo(srcNorm);
+    printInfo(templ);
+    printInfo(templateNorm);
+    printInfo(dst);
+//    normalize(dst, dst, 0, 1, NORM_MINMAX, -1, Mat());
 
     /// Localizing the best match with minMaxLoc
     double minVal;
     double maxVal;
     Point minLoc;
     Point maxLoc;
-    Point matchLoc;
 
-    minMaxLoc(dst, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
-
-    /// For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
-    if (method == CV_TM_SQDIFF || method == CV_TM_SQDIFF_NORMED) {
-        matchLoc = minLoc;
-    } else {
-        matchLoc = maxLoc;
+    Mat minMaxMat = dst.clone();
+    normalize(dst, dst, 0, 1, NORM_MINMAX, -1, Mat());
+    minMaxLoc(minMaxMat, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
+    printf("Min v thresh: %lf v %lf.\n", minVal, thresh);
+    while(minVal < thresh) {
+        count++;
+        printf("Min (%lf < %lf) at [%d,%d].\n", minVal, thresh, minLoc.x, minLoc.y);
+        // Draw rectangles in original frame at max location
+        rectangle(drawMatrix, minLoc, Point(minLoc.x + templ.cols, minLoc.y + templ.rows), Scalar::all(0), 2, 8, 0);
+        // Set area around this point to 0s so it isn't considered again
+        rectangle(minMaxMat, 
+                Point(minLoc.x - templ.cols / 2, minLoc.y - templ.rows / 2), 
+                Point(minLoc.x + templ.cols / 2, minLoc.y + templ.rows / 2), Scalar(thresh), CV_FILLED, 8, 0);
+//        cvShowImage("Input", frameImage);
+//        outImage = dst;
+//        cvShowImage("Output", &outImage);
+//        minVal = 5;
+//        int c = cvWaitKey();
+//        while ((char) c != 27) {
+//            c = cvWaitKey();
+//        }
+        // Find next max
+        minMaxLoc(minMaxMat, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
     }
-
-    // Draw rectangles in original frame at max location
-    rectangle(frameMatrix, matchLoc, Point(matchLoc.x + templ.cols, matchLoc.y + templ.rows), Scalar::all(0), 2, 8, 0);
-
-    //    float thresh = 0.75;
-    //    threshold(dst, dst, thresh, 255, THRESH_BINARY);
+    fprintf(stderr, "%d circles detected.\n", count);
 }
 
-void Gesture::houghCircles(const Mat& src, Mat& dst, Mat& frameMatrix, Mat& templ) {
-    // smooth it, otherwise a lot of false circles may be detected
-    GaussianBlur(src, dst, Size(9, 9), 2, 2);
+void Gesture::houghCircles(const Mat& src, Mat& dst, Mat& drawMatrix, Mat& templ) {
+    // Smooth it, otherwise a lot of false circles may be detected
+    //    GaussianBlur(src, dst, Size(9, 9), 4, 4);
+    medianBlur(src, dst, 5);
+
     vector<Vec3f> circles;
-    HoughCircles(dst, circles, CV_HOUGH_GRADIENT, 2, 50, 200, 100);
+    HoughCircles(src, circles, CV_HOUGH_GRADIENT, 2, 40, 200, 100);
     for (size_t i = 0; i < circles.size(); i++) {
         Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
         int radius = cvRound(circles[i][2]);
         // draw the circle center
-        circle(frameMatrix, center, 3, Scalar(0, 255, 0), -1, 8, 0);
+        circle(drawMatrix, center, 3, Scalar(0, 255, 0), -1, 8, 0);
         // draw the circle outline
-        circle(frameMatrix, center, radius, Scalar(0, 0, 255), 3, 8, 0);
+        circle(drawMatrix, center, radius, Scalar(0, 0, 255), 3, 8, 0);
     }
     fprintf(stderr, "Found %ld circles.\n", circles.size());
 }
 
 void Gesture::printInfo(const Mat& mat) {
     fprintf(stderr, "mat: %d %d %d %d %d\n", mat.rows, mat.cols, mat.channels(), mat.depth(), mat.type());
+}
+
+void Gesture::cross(Mat &mat, int row, int col, int l) {
+    for (int i = -l; i <= l; i++) {
+        for (int j = -l; j <= l; j++) {
+            mat.at<Vec3b > (row + i, col + j)[2] = 255;
+            mat.at<Vec3b > (row + i, col + j)[1] = 0;
+            mat.at<Vec3b > (row + i, col + j)[0] = 0;
+        }
+    }
 }
