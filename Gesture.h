@@ -42,19 +42,9 @@ private:
     IplImage* postFrame;
     IplImage tempImage, outImage;
     int outheight, outwidth, outstep, outdepth, outchannels;
-    int save;
-    uchar *data;
-    uchar *procData;
-    uchar *postData;
-    uchar *outdata;
-    int i, j, k;
     bool firstPass, display;
-    Mat frameMatrix, colorMeanT, colorVarInv, inputMatrix, outputMatrix, redMatrix,
-    greenMatrix, blueMatrix, tempMatrix, templateMatrix, hsvMatrix;
-    CvFont font;
-    static const double hScale = 1.0;
-    static const double vScale = 1.0;
-    static const int lineWidth = 1;
+    Mat frameMatrix, outputMatrix, redMatrix,greenMatrix, tempMatrix,
+    template32Matrix, template48Matrix, template64Matrix, hsvMatrix;
 
     void nothing(const Mat& src, Mat& dst);
     void applyFlip(const Mat& src, Mat& dst);
@@ -66,8 +56,8 @@ private:
     void applyChRGB(const Mat& src, Mat& dst, double rMean, double gMean, double bMean, double rSDI, double gSDI, double bSDI, double thresh);
     void applyGaussHSV(const Mat& src, Mat& dst, double hMean, double sMean, double vMean, double hSDI, double sSDI, double vSDI, double thresh);
     void applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, double sMin, double sMax, double vMin, double vMax);
-    void templateCircles(const Mat& src, Mat& dst, Mat& drawMatrix, Mat& procMatrix, Mat& templ, double thresh);
+    void templateCircles(const Mat& src, Mat& dst, Mat& templ, double thresh, Vector<Point>& circles);
     void houghCircles(const Mat& src, Mat& dst, Mat& drawMatrix, Mat& templ);
     void printInfo(const Mat &mat);
-    void cross(Mat &mat, int row, int col, int l);
+    void drawSquares(Mat& src, Vector<Point>& circles, int length, Scalar color);
 };
