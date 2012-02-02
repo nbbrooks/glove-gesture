@@ -22,6 +22,11 @@ Gesture::Gesture(int argc, char** argv) {
     template48Matrix = imread("template-48.ppm", 0);
     template64Matrix = imread("template-64.ppm", 0);
 
+    // Normalize 0 to 1 so matching scores are in usable range
+    template32Matrix.convertTo(template32Matrix, CV_32FC1, 1.0 / 255.0, 0);
+    template48Matrix.convertTo(template48Matrix, CV_32FC1, 1.0 / 255.0, 0);
+    template64Matrix.convertTo(template64Matrix, CV_32FC1, 1.0 / 255.0, 0);
+
     fprintf(stderr, "CV_8UC1 is %d\n", CV_8UC1);
     fprintf(stderr, "CV_8UC2 is %d\n", CV_8UC2);
     fprintf(stderr, "CV_8UC3 is %d\n", CV_8UC3);
@@ -69,30 +74,100 @@ Gesture::Gesture(int argc, char** argv) {
         std::cout << "File is " << argv[1] << std::endl;
         frameImage = cvLoadImage(argv[1]);
         frameMatrix = cvarrToMat(frameImage);
+        if (DEBUG) {
+            cvWaitKey(0);
+        }
 
         // Pre-processing
         medianBlur(frameMatrix, frameMatrix, 5);
         GaussianBlur(frameMatrix, frameMatrix, Size(9, 9), 1, 1);
+        
         // Colorspace processing
         cvtColor(frameMatrix, hsvMatrix, CV_BGR2HSV);
-        applyTableHSV(frameMatrix, greenMatrix, H_MIN_G, H_MAX_G, S_MIN_G, S_MAX_G, V_MIN_G, V_MAX_G);
-        applyTableHSV(frameMatrix, tempMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, V_MIN_R1, V_MAX_R1);
-        applyTableHSV(frameMatrix, redMatrix, H_MIN_R2, H_MAX_R2, S_MIN_R2, S_MAX_R2, V_MIN_R2, V_MAX_R2);
+        applyTableHSV(hsvMatrix, greenMatrix, H_MIN_G, H_MAX_G, S_MIN_G, S_MAX_G, V_MIN_G, V_MAX_G);
+        applyTableHSV(hsvMatrix, tempMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, V_MIN_R1, V_MAX_R1);
+        applyTableHSV(hsvMatrix, redMatrix, H_MIN_R2, H_MAX_R2, S_MIN_R2, S_MAX_R2, V_MIN_R2, V_MAX_R2);
         add(tempMatrix, redMatrix, redMatrix);
+        
         // Circle detection
-        templateCircles(greenMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, greenCircles32);
-        templateCircles(greenMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, greenCircles48);
-        templateCircles(greenMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, greenCircles64);
-        templateCircles(redMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, redCircles32);
-        templateCircles(redMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, redCircles48);
-        templateCircles(redMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, redCircles64);
-//        fprintf(stderr, "%lu green circles, %lu red circles.\n",
-//                (greenCircles32.size() + greenCircles32.size() + greenCircles32.size()),
-//                (redCircles32.size() + redCircles48.size() + redCircles64.size()));
-        // Output images
-        // Segmentation image
+        // Normalize 0 to 1 so matching scores are in usable range
+        greenMatrix.convertTo(greenMatrix, CV_32FC1, 1.0 / 255.0, 0);
+        redMatrix.convertTo(redMatrix, CV_32FC1, 1.0 / 255.0, 0);
         Mat blueMatrix(greenMatrix.rows, greenMatrix.cols, greenMatrix.type(), Scalar(0));
         vector<Mat> bgr;
+        //Red 64
+        templateCircles(redMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, redCircles64);
+        if (DEBUG) {
+            bgr.clear();
+            bgr.push_back(blueMatrix);
+            bgr.push_back(greenMatrix);
+            bgr.push_back(redMatrix);
+            merge(bgr, tempMatrix);
+            normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
+            showImages(frameMatrix, tempMatrix, outputMatrix);
+        }
+        // Red 48
+        templateCircles(redMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, redCircles48);
+        if (DEBUG) {
+            bgr.clear();
+            bgr.push_back(blueMatrix);
+            bgr.push_back(greenMatrix);
+            bgr.push_back(redMatrix);
+            merge(bgr, tempMatrix);
+            normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
+            showImages(frameMatrix, tempMatrix, outputMatrix);
+        }
+        // Red 32
+        templateCircles(redMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, redCircles32);
+        if (DEBUG) {
+            bgr.clear();
+            bgr.push_back(blueMatrix);
+            bgr.push_back(greenMatrix);
+            bgr.push_back(redMatrix);
+            merge(bgr, tempMatrix);
+            normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
+            showImages(frameMatrix, tempMatrix, outputMatrix);
+        }
+        // Green 64
+        templateCircles(greenMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, greenCircles64);
+        if (DEBUG) {
+            bgr.clear();
+            bgr.push_back(blueMatrix);
+            bgr.push_back(greenMatrix);
+            bgr.push_back(redMatrix);
+            merge(bgr, tempMatrix);
+            normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
+            showImages(frameMatrix, tempMatrix, outputMatrix);
+        }
+        // Green 48
+        templateCircles(greenMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, greenCircles48);
+        if (DEBUG) {
+            bgr.clear();
+            bgr.push_back(blueMatrix);
+            bgr.push_back(greenMatrix);
+            bgr.push_back(redMatrix);
+            merge(bgr, tempMatrix);
+            normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
+            showImages(frameMatrix, tempMatrix, outputMatrix);
+        }
+        // Green 32
+        templateCircles(greenMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, greenCircles32);
+        if (DEBUG) {
+            bgr.clear();
+            bgr.push_back(blueMatrix);
+            bgr.push_back(greenMatrix);
+            bgr.push_back(redMatrix);
+            merge(bgr, tempMatrix);
+            normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
+            showImages(frameMatrix, tempMatrix, outputMatrix);
+        }
+        fprintf(stderr, "%lu green circles, %lu red circles.\n",
+                (greenCircles32.size() + greenCircles48.size() + greenCircles64.size()),
+                (redCircles32.size() + redCircles48.size() + redCircles64.size()));
+        
+        // Output images
+        // Segmentation image
+        bgr.clear();
         bgr.push_back(blueMatrix);
         bgr.push_back(greenMatrix);
         bgr.push_back(redMatrix);
@@ -110,6 +185,7 @@ Gesture::Gesture(int argc, char** argv) {
         drawSquares(tempMatrix, redCircles32, template32Matrix.cols, Scalar(0, 0, 255));
         drawSquares(tempMatrix, redCircles48, template48Matrix.cols, Scalar(0, 0, 255));
         drawSquares(tempMatrix, redCircles64, template64Matrix.cols, Scalar(0, 0, 255));
+        
         // Display results
         tempImage = tempMatrix;
         normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
@@ -117,6 +193,7 @@ Gesture::Gesture(int argc, char** argv) {
         cvShowImage("Input", frameImage);
         cvShowImage("Process", &tempImage);
         cvShowImage("Output", &outImage);
+        
         // Pause before quitting
         c = cvWaitKey();
         while ((char) c != 27) {
@@ -135,8 +212,6 @@ Gesture::Gesture(int argc, char** argv) {
     if (argc == 1 || (argc == 2 && strlen(argv[1]) == 1 && isdigit(argv[1][0]))) {
         capture = cvCreateCameraCapture(argc == 2 ? argv[1][0] - '0' : 0);
     }
-//    else if (argc == 2)
-//        capture = cvCaptureFromAVI(argv[1]);
     cvSetCaptureProperty(capture, CV_CAP_PROP_FRAME_WIDTH, 640);
     cvSetCaptureProperty(capture, CV_CAP_PROP_FRAME_HEIGHT, 480);
 
@@ -152,29 +227,36 @@ Gesture::Gesture(int argc, char** argv) {
             break;
         frameMatrix = cvarrToMat(frameImage);
         display = true;
+        
         // Pre-processing
         medianBlur(frameMatrix, frameMatrix, 5);
         GaussianBlur(frameMatrix, frameMatrix, Size(9, 9), 1, 1);
+        
         // Colorspace processing
         cvtColor(frameMatrix, hsvMatrix, CV_BGR2HSV);
         applyTableHSV(hsvMatrix, greenMatrix, H_MIN_G, H_MAX_G, S_MIN_G, S_MAX_G, V_MIN_G, V_MAX_G);
         applyTableHSV(hsvMatrix, tempMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, V_MIN_R1, V_MAX_R1);
         applyTableHSV(hsvMatrix, redMatrix, H_MIN_R2, H_MAX_R2, S_MIN_R2, S_MAX_R2, V_MIN_R2, V_MAX_R2);
         add(tempMatrix, redMatrix, redMatrix);
+        
         // Circle detection
-        templateCircles(greenMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, greenCircles32);
-        templateCircles(greenMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, greenCircles48);
-        templateCircles(greenMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, greenCircles64);
-        templateCircles(redMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, redCircles32);
-        templateCircles(redMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, redCircles48);
-        templateCircles(redMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, redCircles64);
-        fprintf(stderr, "%lu green circles, %lu red circles.\n",
-                (greenCircles32.size() + greenCircles32.size() + greenCircles32.size()),
-                (redCircles32.size() + redCircles48.size() + redCircles64.size()));
-        // Output images
-        // Segmentation image
+        // Normalize 0 to 1 so matching scores are in usable range
+        greenMatrix.convertTo(greenMatrix, CV_32FC1, 1.0 / 255.0, 0);
+        redMatrix.convertTo(redMatrix, CV_32FC1, 1.0 / 255.0, 0);
         Mat blueMatrix(greenMatrix.rows, greenMatrix.cols, greenMatrix.type(), Scalar(0));
         vector<Mat> bgr;
+        templateCircles(redMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, redCircles64);
+        templateCircles(redMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, redCircles48);
+        templateCircles(redMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, redCircles32);
+        templateCircles(greenMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, greenCircles64);
+        templateCircles(greenMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, greenCircles48);
+        templateCircles(greenMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, greenCircles32);
+        fprintf(stderr, "%lu green circles, %lu red circles.\n",
+                (greenCircles32.size() + greenCircles48.size() + greenCircles64.size()),
+                (redCircles32.size() + redCircles48.size() + redCircles64.size()));
+        
+        // Output images
+        // Segmentation image
         bgr.push_back(blueMatrix);
         bgr.push_back(greenMatrix);
         bgr.push_back(redMatrix);
@@ -192,6 +274,7 @@ Gesture::Gesture(int argc, char** argv) {
         drawSquares(tempMatrix, redCircles32, template32Matrix.cols, Scalar(0, 0, 255));
         drawSquares(tempMatrix, redCircles48, template48Matrix.cols, Scalar(0, 0, 255));
         drawSquares(tempMatrix, redCircles64, template64Matrix.cols, Scalar(0, 0, 255));
+        
         // Display values for center pixel
         debug.str("");
         debug << (int) (hsvMatrix.at<Vec3b > (240, 320)[0]) << "," <<
@@ -207,6 +290,7 @@ Gesture::Gesture(int argc, char** argv) {
         putText(tempMatrix, debug.str(), Point(0, 60), FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 255, 255));
         rectangle(frameMatrix, Point(239, 319), Point(241, 321), Scalar(0, 0, 255), CV_FILLED, 8, 0);
         rectangle(tempMatrix, Point(239, 319), Point(241, 321), Scalar(0, 0, 255), CV_FILLED, 8, 0);
+        
         // Display results
         tempImage = tempMatrix;
         normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
@@ -216,6 +300,7 @@ Gesture::Gesture(int argc, char** argv) {
             cvShowImage("Process", &tempImage);
             cvShowImage("Output", &outImage);
         }
+        
         // Poll for input before looping
         c = cvWaitKey(10);
         if ((char) c == 27) {
@@ -236,7 +321,6 @@ Gesture::Gesture(int argc, char** argv) {
         redCircles32.clear();
         redCircles48.clear();
         redCircles64.clear();
-//        sleep(1);
     }
     // Destroy and quit
     cvReleaseCapture(&capture);
@@ -547,27 +631,32 @@ void Gesture::applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, 
     return;
 }
 
-void Gesture::templateCircles(const Mat& src, Mat& dst, Mat& templ, double thresh, Vector<Point>& circles) {
-    // Normalize 0 to 1 so matching scores are in usable range
-    Mat srcNorm, templateNorm;
-    src.convertTo(srcNorm, CV_32FC1, 1.0 / 255.0, 0);
-    templ.convertTo(templateNorm, CV_32FC1, 1.0 / 255.0, 0);
+void Gesture::templateCircles(Mat& src, Mat& dst, Mat& templ, double thresh, Vector<Point>& circles) {
     // Template matching
-    matchTemplate(srcNorm, templateNorm, dst, CV_TM_SQDIFF);
+    matchTemplate(src, templ, dst, CV_TM_SQDIFF);
     // Find best matches
     double minVal;
     Point minLoc;
     minMaxLoc(dst, &minVal, NULL, &minLoc, NULL, Mat());
-//    printf("Checking %lf < %lf at [%d,%d].\n", minVal, thresh, minLoc.x, minLoc.y);
+    printf("Checking %lf < %lf at [%d,%d].\n", minVal, thresh, minLoc.x, minLoc.y);
     while (minVal < thresh) {
-        circles.push_back(minLoc);
         // Set area around this point to 0s so it isn't considered again
         rectangle(dst,
                 Point(minLoc.x - templ.cols / 2, minLoc.y - templ.rows / 2),
                 Point(minLoc.x + templ.cols / 2, minLoc.y + templ.rows / 2), Scalar(thresh), CV_FILLED, 8, 0);
+        //fprintf(stderr, "dst rectangle at [%d,%d] with length %d.\n",
+        //        minLoc.x - templ.cols / 2, minLoc.y - templ.rows / 2, templ.cols);
+        // Remember to compensate for the template size border taken out during template matching
+        rectangle(src,
+                Point(minLoc.x, minLoc.y),
+                Point(minLoc.x + templ.cols, minLoc.y + templ.rows), Scalar(0), CV_FILLED, 8, 0);
+        circles.push_back(Point(minLoc.x + templ.cols / 2, minLoc.y + templ.rows / 2));
+        //fprintf(stderr, "src rectangle at [%d,%d] with length %d.\n",
+        //        minLoc.x + templ.cols / 2, minLoc.y + templ.rows / 2, templ.cols);
+
         // Find next max
         minMaxLoc(dst, &minVal, NULL, &minLoc, NULL, Mat());
-//        printf("Checking %lf < %lf at [%d,%d].\n", minVal, thresh, minLoc.x, minLoc.y);
+        //printf("Checking %lf < %lf at [%d,%d].\n", minVal, thresh, minLoc.x, minLoc.y);
     }
 }
 
@@ -594,10 +683,37 @@ void Gesture::printInfo(const Mat& mat) {
 }
 
 void Gesture::drawSquares(Mat& src, Vector<Point>& circles, int length, Scalar color) {
+    //fprintf(stderr, "Drawing %ld squares of length %d.\n", circles.size(), length);
     Point point;
     for (size_t i = 0; i < circles.size(); i++) {
         point = circles[i];
-        rectangle(src, point, Point(point.x + length, point.y + length), color, 2, 8, 0);
-        rectangle(src, point, Point(point.x + length, point.y + length), color, 2, 8, 0);
+        rectangle(src,
+                Point(point.x - length / 2, point.y - length / 2),
+                Point(point.x + length / 2, point.y + length / 2), color, 2, 8, 0);
     }
+}
+
+void Gesture::showImages(const Mat& inputMatrix, const Mat& processMatrix, const Mat& outputMatrix) {
+    IplImage inputImage, processImage, outputImage;
+    if (!inputMatrix.empty()) {
+        inputImage = inputMatrix;
+        cvShowImage("Input", &inputImage);
+        fprintf(stderr, "Input matrix is size [%d,%d]\n", inputMatrix.rows, inputMatrix.cols);
+    }
+    if (!processMatrix.empty()) {
+        processImage = processMatrix;
+        cvShowImage("Process", &processImage);
+        fprintf(stderr, "Process matrix is size [%d,%d]\n", processMatrix.rows, processMatrix.cols);
+    }
+    if (!outputMatrix.empty()) {
+        outputImage = outputMatrix;
+        cvShowImage("Output", &outputImage);
+        fprintf(stderr, "Output matrix is size [%d,%d]\n", outputMatrix.rows, outputMatrix.cols);
+    }
+    // Pause before quitting
+    int c = cvWaitKey();
+    while ((char) c != 27) {
+        c = cvWaitKey();
+    }
+    fprintf(stderr, "----------------------------\n");
 }

@@ -7,6 +7,8 @@ class Gesture {
 public:
     Gesture(int, char **);
 private:
+    static const bool DEBUG = false;
+    
     static const double THRESH_R = 0.005;
     static const double THRESH_G = 0.1;
     static const double THRESH_B = 0.005;
@@ -14,6 +16,11 @@ private:
     static const double THRESH_TEMPLATE_48 = 500.0;
     static const double THRESH_TEMPLATE_64 = 1280.0;
 
+    // OpenCV / GIMP
+    // H: [0,180] / [0,255]
+    // S: [0,255] / [0,100]
+    // V: [0,255] / [0,100]
+    
     // Red
     static const double H_MIN_R1 = 0.000000; // (0.000000)
     static const double H_MAX_R1 = 5.760000; // (11.520000)
@@ -43,7 +50,7 @@ private:
     IplImage tempImage, outImage;
     int outheight, outwidth, outstep, outdepth, outchannels;
     bool firstPass, display;
-    Mat frameMatrix, outputMatrix, redMatrix,greenMatrix, tempMatrix,
+    Mat frameMatrix, outputMatrix, redMatrix, greenMatrix, tempMatrix,
     template32Matrix, template48Matrix, template64Matrix, hsvMatrix;
 
     void nothing(const Mat& src, Mat& dst);
@@ -56,8 +63,9 @@ private:
     void applyChRGB(const Mat& src, Mat& dst, double rMean, double gMean, double bMean, double rSDI, double gSDI, double bSDI, double thresh);
     void applyGaussHSV(const Mat& src, Mat& dst, double hMean, double sMean, double vMean, double hSDI, double sSDI, double vSDI, double thresh);
     void applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, double sMin, double sMax, double vMin, double vMax);
-    void templateCircles(const Mat& src, Mat& dst, Mat& templ, double thresh, Vector<Point>& circles);
+    void templateCircles(Mat& src, Mat& dst, Mat& templ, double thresh, Vector<Point>& circles);
     void houghCircles(const Mat& src, Mat& dst, Mat& drawMatrix, Mat& templ);
     void printInfo(const Mat &mat);
     void drawSquares(Mat& src, Vector<Point>& circles, int length, Scalar color);
+    void showImages(const Mat& inputMatrix, const Mat& processMatrix, const Mat& outputMatrix);
 };
