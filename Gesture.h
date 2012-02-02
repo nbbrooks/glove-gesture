@@ -8,7 +8,14 @@ public:
     Gesture(int, char **);
 private:
     static const bool DEBUG = false;
-    
+
+    // Gesture statistical mode settings
+    static const int BUFFER_SIZE = 10;
+    static const int MODE_MINIMUM = 5;
+    static const int MAX_GREEN_CIRCLES = 5;
+    static const int MAX_RED_CIRCLES = 2;
+
+    // Template matching settings
     static const double THRESH_R = 0.005;
     static const double THRESH_G = 0.1;
     static const double THRESH_B = 0.005;
@@ -16,11 +23,11 @@ private:
     static const double THRESH_TEMPLATE_48 = 500.0;
     static const double THRESH_TEMPLATE_64 = 1280.0;
 
+    // Color segmentation settings
     // OpenCV / GIMP
     // H: [0,180] / [0,255]
     // S: [0,255] / [0,100]
     // V: [0,255] / [0,100]
-    
     // Red
     static const double H_MIN_R1 = 0.000000; // (0.000000)
     static const double H_MAX_R1 = 5.760000; // (11.520000)
@@ -68,4 +75,5 @@ private:
     void printInfo(const Mat &mat);
     void drawSquares(Mat& src, Vector<Point>& circles, int length, Scalar color);
     void showImages(const Mat& inputMatrix, const Mat& processMatrix, const Mat& outputMatrix);
+    void largePrint(int circleCount);
 };

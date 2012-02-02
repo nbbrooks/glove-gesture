@@ -17,6 +17,12 @@ int main(int argc, char** argv) {
 Gesture::Gesture(int argc, char** argv) {
     int c, save = 0;
     std::stringstream debug;
+    int bufferIndex = 0, bufferModeCount, bufferModeIndex, gesture;
+    int gestureBuffer[BUFFER_SIZE], modeCounter[BUFFER_SIZE];
+    for (int i = 0; i < BUFFER_SIZE; i++) {
+        gestureBuffer[i] = 0;
+        modeCounter[i] = 0;
+    }
     Vector<Point> greenCircles32, greenCircles48, greenCircles64, redCircles32, redCircles48, redCircles64;
     template32Matrix = imread("template-32.ppm", 0);
     template48Matrix = imread("template-48.ppm", 0);
@@ -68,7 +74,7 @@ Gesture::Gesture(int argc, char** argv) {
     cvNamedWindow("Input", CV_WINDOW_AUTOSIZE);
     cvNamedWindow("Process", CV_WINDOW_AUTOSIZE);
     cvNamedWindow("Output", CV_WINDOW_AUTOSIZE);
-    
+
     if (argc == 2 && strlen(argv[1]) > 1 && !isdigit(argv[1][0])) {
         // Load image
         std::cout << "File is " << argv[1] << std::endl;
@@ -81,14 +87,14 @@ Gesture::Gesture(int argc, char** argv) {
         // Pre-processing
         medianBlur(frameMatrix, frameMatrix, 5);
         GaussianBlur(frameMatrix, frameMatrix, Size(9, 9), 1, 1);
-        
+
         // Colorspace processing
         cvtColor(frameMatrix, hsvMatrix, CV_BGR2HSV);
         applyTableHSV(hsvMatrix, greenMatrix, H_MIN_G, H_MAX_G, S_MIN_G, S_MAX_G, V_MIN_G, V_MAX_G);
         applyTableHSV(hsvMatrix, tempMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, V_MIN_R1, V_MAX_R1);
         applyTableHSV(hsvMatrix, redMatrix, H_MIN_R2, H_MAX_R2, S_MIN_R2, S_MAX_R2, V_MIN_R2, V_MAX_R2);
         add(tempMatrix, redMatrix, redMatrix);
-        
+
         // Circle detection
         // Normalize 0 to 1 so matching scores are in usable range
         greenMatrix.convertTo(greenMatrix, CV_32FC1, 1.0 / 255.0, 0);
@@ -164,7 +170,7 @@ Gesture::Gesture(int argc, char** argv) {
         fprintf(stderr, "%lu green circles, %lu red circles.\n",
                 (greenCircles32.size() + greenCircles48.size() + greenCircles64.size()),
                 (redCircles32.size() + redCircles48.size() + redCircles64.size()));
-        
+
         // Output images
         // Segmentation image
         bgr.clear();
@@ -185,7 +191,7 @@ Gesture::Gesture(int argc, char** argv) {
         drawSquares(tempMatrix, redCircles32, template32Matrix.cols, Scalar(0, 0, 255));
         drawSquares(tempMatrix, redCircles48, template48Matrix.cols, Scalar(0, 0, 255));
         drawSquares(tempMatrix, redCircles64, template64Matrix.cols, Scalar(0, 0, 255));
-        
+
         // Display results
         tempImage = tempMatrix;
         normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
@@ -193,7 +199,7 @@ Gesture::Gesture(int argc, char** argv) {
         cvShowImage("Input", frameImage);
         cvShowImage("Process", &tempImage);
         cvShowImage("Output", &outImage);
-        
+
         // Pause before quitting
         c = cvWaitKey();
         while ((char) c != 27) {
@@ -227,18 +233,18 @@ Gesture::Gesture(int argc, char** argv) {
             break;
         frameMatrix = cvarrToMat(frameImage);
         display = true;
-        
+
         // Pre-processing
         medianBlur(frameMatrix, frameMatrix, 5);
         GaussianBlur(frameMatrix, frameMatrix, Size(9, 9), 1, 1);
-        
+
         // Colorspace processing
         cvtColor(frameMatrix, hsvMatrix, CV_BGR2HSV);
         applyTableHSV(hsvMatrix, greenMatrix, H_MIN_G, H_MAX_G, S_MIN_G, S_MAX_G, V_MIN_G, V_MAX_G);
         applyTableHSV(hsvMatrix, tempMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, V_MIN_R1, V_MAX_R1);
         applyTableHSV(hsvMatrix, redMatrix, H_MIN_R2, H_MAX_R2, S_MIN_R2, S_MAX_R2, V_MIN_R2, V_MAX_R2);
         add(tempMatrix, redMatrix, redMatrix);
-        
+
         // Circle detection
         // Normalize 0 to 1 so matching scores are in usable range
         greenMatrix.convertTo(greenMatrix, CV_32FC1, 1.0 / 255.0, 0);
@@ -254,7 +260,42 @@ Gesture::Gesture(int argc, char** argv) {
         fprintf(stderr, "%lu green circles, %lu red circles.\n",
                 (greenCircles32.size() + greenCircles48.size() + greenCircles64.size()),
                 (redCircles32.size() + redCircles48.size() + redCircles64.size()));
-        
+
+        /*
+         * Here we use a rolling window of size BUFFER_SIZE so that several 
+         * frames of the same gesture must be captured to result in a command.
+         * We calculate the mode and make sure the mode count is above 
+         * MODE_MINIMUM.
+         */
+        // First check that we have a possible number of detected circles
+        if ((greenCircles32.size() + greenCircles48.size() + greenCircles64.size()) <= MAX_GREEN_CIRCLES &&
+                (redCircles32.size() + redCircles48.size() + redCircles64.size()) <= MAX_RED_CIRCLES) {
+            // Store number as <number green circles><number red circles>
+            gestureBuffer[bufferIndex] = 10 * (greenCircles32.size() + greenCircles48.size() + greenCircles64.size()) +
+                    redCircles32.size() + redCircles48.size() + redCircles64.size();
+            bufferIndex = (bufferIndex + 1) % BUFFER_SIZE;
+            // Calculate mode
+            bufferModeCount = 0, bufferModeIndex = 0;
+            for (int curNumIndex = 0; curNumIndex < BUFFER_SIZE; curNumIndex++) {
+                modeCounter[curNumIndex] = 0;
+                for (int i = 0; i < BUFFER_SIZE; i++) {
+                    if (gestureBuffer[i] == gestureBuffer[curNumIndex]) {
+                        modeCounter[curNumIndex]++;
+                    }
+                }
+                if (modeCounter[curNumIndex] > bufferModeCount) {
+                    bufferModeIndex = curNumIndex;
+                    bufferModeCount = modeCounter[curNumIndex];
+                }
+            }
+            // Check against minimum mode count
+            if (bufferModeCount >= MODE_MINIMUM) {
+                gesture = gestureBuffer[bufferModeIndex];
+                // Print out mode number
+                largePrint(gesture);
+            }
+        }
+
         // Output images
         // Segmentation image
         bgr.push_back(blueMatrix);
@@ -274,7 +315,7 @@ Gesture::Gesture(int argc, char** argv) {
         drawSquares(tempMatrix, redCircles32, template32Matrix.cols, Scalar(0, 0, 255));
         drawSquares(tempMatrix, redCircles48, template48Matrix.cols, Scalar(0, 0, 255));
         drawSquares(tempMatrix, redCircles64, template64Matrix.cols, Scalar(0, 0, 255));
-        
+
         // Display values for center pixel
         debug.str("");
         debug << (int) (hsvMatrix.at<Vec3b > (240, 320)[0]) << "," <<
@@ -290,7 +331,7 @@ Gesture::Gesture(int argc, char** argv) {
         putText(tempMatrix, debug.str(), Point(0, 60), FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 255, 255));
         rectangle(frameMatrix, Point(239, 319), Point(241, 321), Scalar(0, 0, 255), CV_FILLED, 8, 0);
         rectangle(tempMatrix, Point(239, 319), Point(241, 321), Scalar(0, 0, 255), CV_FILLED, 8, 0);
-        
+
         // Display results
         tempImage = tempMatrix;
         normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
@@ -300,7 +341,7 @@ Gesture::Gesture(int argc, char** argv) {
             cvShowImage("Process", &tempImage);
             cvShowImage("Output", &outImage);
         }
-        
+
         // Poll for input before looping
         c = cvWaitKey(10);
         if ((char) c == 27) {
@@ -638,7 +679,7 @@ void Gesture::templateCircles(Mat& src, Mat& dst, Mat& templ, double thresh, Vec
     double minVal;
     Point minLoc;
     minMaxLoc(dst, &minVal, NULL, &minLoc, NULL, Mat());
-    printf("Checking %lf < %lf at [%d,%d].\n", minVal, thresh, minLoc.x, minLoc.y);
+    //printf("Checking %lf < %lf at [%d,%d].\n", minVal, thresh, minLoc.x, minLoc.y);
     while (minVal < thresh) {
         // Set area around this point to 0s so it isn't considered again
         rectangle(dst,
@@ -716,4 +757,175 @@ void Gesture::showImages(const Mat& inputMatrix, const Mat& processMatrix, const
         c = cvWaitKey();
     }
     fprintf(stderr, "----------------------------\n");
+}
+
+std::string largeNumbers[10][16] = {
+    {"     000000000     ",
+        "   00:::::::::00   ",
+        " 00:::::::::::::00 ",
+        "0:::::::000:::::::0",
+        "0::::::0   0::::::0",
+        "0:::::0     0:::::0",
+        "0:::::0     0:::::0",
+        "0:::::0 000 0:::::0",
+        "0:::::0 000 0:::::0",
+        "0:::::0     0:::::0",
+        "0:::::0     0:::::0",
+        "0::::::0   0::::::0",
+        "0:::::::000:::::::0",
+        " 00:::::::::::::00 ",
+        "   00:::::::::00   ",
+        "     000000000     "},
+    {"  1111111   ",
+        " 1::::::1   ",
+        "1:::::::1   ",
+        "111:::::1   ",
+        "   1::::1   ",
+        "   1::::1   ",
+        "   1::::1   ",
+        "   1::::l   ",
+        "   1::::l   ",
+        "   1::::l   ",
+        "   1::::l   ",
+        "   1::::l   ",
+        "111::::::111",
+        "1::::::::::1",
+        "1::::::::::1",
+        "111111111111"},
+    {" 222222222222222    ",
+        "2:::::::::::::::22  ",
+        "2::::::222222:::::2 ",
+        "2222222     2:::::2 ",
+        "            2:::::2 ",
+        "            2:::::2 ",
+        "         2222::::2  ",
+        "    22222::::::22   ",
+        "  22::::::::222     ",
+        " 2:::::22222        ",
+        "2:::::2             ",
+        "2:::::2             ",
+        "2:::::2       222222",
+        "2::::::2222222:::::2",
+        "2::::::::::::::::::2",
+        "22222222222222222222"},
+    {" 333333333333333   ",
+        "3:::::::::::::::33 ",
+        "3::::::33333::::::3",
+        "3333333     3:::::3",
+        "            3:::::3",
+        "            3:::::3",
+        "    33333333:::::3 ",
+        "    3:::::::::::3  ",
+        "    33333333:::::3 ",
+        "            3:::::3",
+        "            3:::::3",
+        "            3:::::3",
+        "3333333     3:::::3",
+        "3::::::33333::::::3",
+        "3:::::::::::::::33 ",
+        " 333333333333333   "},
+    {"       444444444  ",
+        "      4::::::::4  ",
+        "     4:::::::::4  ",
+        "    4::::44::::4  ",
+        "   4::::4 4::::4  ",
+        "  4::::4  4::::4  ",
+        " 4::::4   4::::4  ",
+        "4::::444444::::444",
+        "4::::::::::::::::4",
+        "4444444444:::::444",
+        "          4::::4  ",
+        "          4::::4  ",
+        "          4::::4  ",
+        "        44::::::44",
+        "        4::::::::4",
+        "        4444444444"},
+    {"555555555555555555 ",
+        "5::::::::::::::::5 ",
+        "5::::::::::::::::5 ",
+        "5:::::555555555555 ",
+        "5:::::5            ",
+        "5:::::5            ",
+        "5:::::5555555555   ",
+        "5:::::::::::::::5  ",
+        "555555555555:::::5 ",
+        "            5:::::5",
+        "            5:::::5",
+        "5555555     5:::::5",
+        "5::::::55555::::::5",
+        " 55:::::::::::::55 ",
+        "   55:::::::::55   ",
+        "     555555555     "},
+    {"        66666666   ",
+        "       6::::::6    ",
+        "      6::::::6     ",
+        "     6::::::6      ",
+        "    6::::::6       ",
+        "   6::::::6        ",
+        "  6::::::6         ",
+        " 6::::::::66666    ",
+        "6::::::::::::::66  ",
+        "6::::::66666:::::6 ",
+        "6:::::6     6:::::6",
+        "6:::::6     6:::::6",
+        "6::::::66666::::::6",
+        " 66:::::::::::::66 ",
+        "   66:::::::::66   ",
+        "     666666666     "},
+    {"77777777777777777777",
+        "7::::::::::::::::::7",
+        "7::::::::::::::::::7",
+        "777777777777:::::::7",
+        "           7::::::7 ",
+        "          7::::::7  ",
+        "         7::::::7   ",
+        "        7::::::7    ",
+        "       7::::::7     ",
+        "      7::::::7      ",
+        "     7::::::7       ",
+        "    7::::::7        ",
+        "   7::::::7         ",
+        "  7::::::7          ",
+        " 7::::::7           ",
+        "77777777            "},
+    {"     888888888     ",
+        "   88:::::::::88   ",
+        " 88:::::::::::::88 ",
+        "8::::::88888::::::8",
+        "8:::::8     8:::::8",
+        "8:::::8     8:::::8",
+        " 8:::::88888:::::8 ",
+        "  8:::::::::::::8  ",
+        " 8:::::88888:::::8 ",
+        "8:::::8     8:::::8",
+        "8:::::8     8:::::8",
+        "8:::::8     8:::::8",
+        "8::::::88888::::::8",
+        " 88:::::::::::::88 ",
+        "   88:::::::::88   ",
+        "     888888888     "},
+    {"     999999999     ",
+        "   99:::::::::99   ",
+        " 99:::::::::::::99 ",
+        "9::::::99999::::::9",
+        "9:::::9     9:::::9",
+        "9:::::9     9:::::9",
+        " 9:::::99999::::::9",
+        "  99::::::::::::::9",
+        "    99999::::::::9 ",
+        "         9::::::9  ",
+        "        9::::::9   ",
+        "       9::::::9    ",
+        "      9::::::9     ",
+        "     9::::::9      ",
+        "    9::::::9       ",
+        "   99999999        "}
+};
+
+void Gesture::largePrint(int circleCount) {
+    int greenCount = circleCount / 10;
+    int redCount = circleCount % 10;
+    for (int i = 0; i < 16; i++) {
+        fprintf(stderr, "%s\t:\t%s\n", largeNumbers[greenCount][i].c_str(), largeNumbers[redCount][i].c_str());
+    }
 }
