@@ -24,31 +24,24 @@ private:
     static const double THRESH_TEMPLATE_64 = 1280.0;
 
     // Color segmentation settings
-    // OpenCV / GIMP
-    // H: [0,180] / [0,255]
-    // S: [0,255] / [0,100]
-    // V: [0,255] / [0,100]
-    // Red
-    static const double H_MIN_R1 = 0.000000; // (0.000000)
-    static const double H_MAX_R1 = 5.760000; // (11.520000)
-    static const double S_MIN_R1 = 97.142857; // (38.095238)
-    static const double S_MAX_R1 = 151.594488; // (59.448819)
-    static const double V_MIN_R1 = 207.000000; // (81.176471)
-    static const double V_MAX_R1 = 254.000000; // (99.607843)
-    static const double H_MIN_R2 = 168.857143; // (337.714286)
-    static const double H_MAX_R2 = 179.791667; // (359.583333)
-    static const double S_MIN_R2 = 85.351240; // (33.471074)
-    static const double S_MAX_R2 = 151.980000; // (59.600000)
-    static const double V_MIN_R2 = 198.000000; // (77.647059)
-    static const double V_MAX_R2 = 254.000000; // (99.607843)
-
+    // OpenCV (uint) / OpenCV (float) / GIMP
+    // H: [0,180] / [0,360] / [0,360]
+    // S: [0,255] / [0,1] / [0,100]
+    // V: [0,255] / [0,1] / [0,100]
     // Green
-    static const double H_MIN_G = 54.000000; // (108.000000)
-    static const double H_MAX_G = 77.763158; // (155.526316)
-    static const double S_MIN_G = 43.562500; // (17.083333)
-    static const double S_MAX_G = 113.220000; // (44.400000)
-    static const double V_MIN_G = 237.000000; // (92.941176)
-    static const double V_MAX_G = 254.000000; // (99.607843)
+    static const double H_MIN_G = 36.190475; // (72.380951)
+    static const double H_MAX_G = 67.500000; // (135.000000)
+    static const double S_MIN_G = 83.191490; // (32.624114)
+    static const double S_MAX_G = 189.572375; // (74.342108)
+    // Red
+    static const double H_MIN_R1 = 0.220588; // (0.441176)
+    static const double H_MAX_R1 = 9.120000; // (18.240000)
+    static const double S_MIN_R1 = 141.666673; // (55.555558)
+    static const double S_MAX_R1 = 216.128055; // (84.756100)
+    static const double H_MIN_R2 = 173.235291; // (346.470581)
+    static const double H_MAX_R2 = 179.763779; // (359.527557)
+    static const double S_MIN_R2 = 157.382812; // (61.718750)
+    static const double S_MAX_R2 = 208.935482; // (81.935483)
 
     IplImage* frameImage;
     IplImage* prevFrame;
