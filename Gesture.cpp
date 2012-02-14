@@ -1,12 +1,9 @@
-//#include "cv.h"
-//#include "highgui.h"
-//#include <stdio.h>
-//#include <ctype.h>
-
 #include <sstream>
 #include "cv.h"
 #include "Gesture.h"
+#include "LargePrint.h"
 #include "highgui.h"
+
 using namespace cv;
 
 int main(int argc, char** argv) {
@@ -401,7 +398,7 @@ Gesture::Gesture(int argc, char** argv) {
       if (bufferModeCount >= MODE_MINIMUM) {
         gesture = gestureBuffer[bufferModeIndex];
         // Print out mode number
-        largePrint(gesture);
+        LargePrint::largePrint(gesture);
       }
     }
 
@@ -554,8 +551,6 @@ void Gesture::applyChRG(const Mat& src, Mat& dst, double rMean, double gMean, do
   divide(rFloat, denom, rChrom);
   divide(gFloat, denom, gChrom);
   divide(bFloat, denom, bChrom);
-  //    fprintf(stderr, "%f %f %f\n", 
-  //            rChrom.at<float>(240, 320), gChrom.at<float>(240, 320), bChrom.at<float>(240, 320));
 
   // Compute gaussian probability pixel is on hand
   rChromV = rChrom.reshape(0, 1);
@@ -574,23 +569,7 @@ void Gesture::applyChRG(const Mat& src, Mat& dst, double rMean, double gMean, do
   multiply(d, Scalar(-0.5), expTerm);
   exp(expTerm, dst);
   dst = dst.reshape(0, 480);
-
-  //    CvMat in_matrix = frameMatrix;
-  //    CvMat old_matrix = outputMatrix;
-  //    fprintf(stderr, "%d %d %d: %f\n", 
-  //            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
-  //            CV_MAT_ELEM(old_matrix, float, 240, 320));
-  //    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
-  //        if (CV_MAT_ELEM(old_matrix, float, i, j) > THRESH) {
-  //            CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
-  //        } else {
-  //            CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
-  //        }
-  //    }
-  //    frameMatrix.at<Vec3b>(240, 320)[2] = 255;
-  //    frameMatrix.at<Vec3b>(240, 320)[1] = 0;
-  //    frameMatrix.at<Vec3b>(240, 320)[0] = 0;
-  //    CV_MAT_ELEM(old_matrix, float, 240, 320) = 128.f;
+  
   threshold(dst, dst, thresh, 255, THRESH_BINARY);
 
   return;
@@ -613,8 +592,6 @@ void Gesture::applyChRB(const Mat& src, Mat& dst, double rMean, double bMean, do
   divide(rFloat, denom, rChrom);
   divide(gFloat, denom, gChrom);
   divide(bFloat, denom, bChrom);
-  //    fprintf(stderr, "%f %f %f\n", 
-  //            rChrom.at<float>(240, 320), gChrom.at<float>(240, 320), bChrom.at<float>(240, 320));
 
   // Compute gaussian probability pixel is on hand
   rChromV = rChrom.reshape(0, 1);
@@ -633,23 +610,7 @@ void Gesture::applyChRB(const Mat& src, Mat& dst, double rMean, double bMean, do
   multiply(d, Scalar(-0.5), expTerm);
   exp(expTerm, dst);
   dst = dst.reshape(0, 480);
-
-  //    CvMat in_matrix = frameMatrix;
-  //    CvMat old_matrix = outputMatrix;
-  //    fprintf(stderr, "%d %d %d: %f\n", 
-  //            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
-  //            CV_MAT_ELEM(old_matrix, float, 240, 320));
-  //    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
-  //        if (CV_MAT_ELEM(old_matrix, float, i, j) > THRESH_Y) {
-  //            CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
-  //        } else {
-  //            CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
-  //        }
-  //    }
-  //    frameMatrix.at<Vec3b>(240, 320)[2] = 255;
-  //    frameMatrix.at<Vec3b>(240, 320)[1] = 0;
-  //    frameMatrix.at<Vec3b>(240, 320)[0] = 0;
-  //    CV_MAT_ELEM(old_matrix, float, 240, 320) = 128.f;
+  
   threshold(dst, dst, thresh, 255, THRESH_BINARY);
 
   return;
@@ -672,8 +633,6 @@ void Gesture::applyChRGB(const Mat& src, Mat& dst, double rMean, double gMean, d
   divide(rFloat, denom, rChrom);
   divide(gFloat, denom, gChrom);
   divide(bFloat, denom, bChrom);
-  //    fprintf(stderr, "%f %f %f\n", 
-  //            rChrom.at<float>(240, 320), gChrom.at<float>(240, 320), bChrom.at<float>(240, 320));
 
   // Compute gaussian probability pixel is on hand
   rChromV = rChrom.reshape(0, 1);
@@ -697,23 +656,7 @@ void Gesture::applyChRGB(const Mat& src, Mat& dst, double rMean, double gMean, d
   multiply(d, Scalar(-0.5), expTerm);
   exp(expTerm, dst);
   dst = dst.reshape(0, 480);
-
-  //    CvMat in_matrix = frameMatrix;
-  //    CvMat old_matrix = outputMatrix;
-  //    fprintf(stderr, "%d %d %d: %f\n", 
-  //            frameMatrix.at<Vec3b>(240, 320)[2], frameMatrix.at<Vec3b>(240, 320)[1], frameMatrix.at<Vec3b>(240, 320)[0], 
-  //            CV_MAT_ELEM(old_matrix, float, 240, 320));
-  //    for (i = 0; i < height; i++) for (j = 0; j < width; j++) {
-  //        if (CV_MAT_ELEM(old_matrix, float, i, j) > THRESH_Y) {
-  //            CV_MAT_ELEM(old_matrix, float, i, j) = 255.f;
-  //        } else {
-  //            CV_MAT_ELEM(old_matrix, float, i, j) = 0.f;
-  //        }
-  //    }
-  //    frameMatrix.at<Vec3b>(240, 320)[2] = 255;
-  //    frameMatrix.at<Vec3b>(240, 320)[1] = 0;
-  //    frameMatrix.at<Vec3b>(240, 320)[0] = 0;
-  //    CV_MAT_ELEM(old_matrix, float, 240, 320) = 128.f;
+  
   threshold(dst, dst, thresh, 255, THRESH_BINARY);
 
   return;
@@ -867,173 +810,9 @@ void Gesture::showImages(const Mat& inputMatrix, const Mat& processMatrix, const
   fprintf(stderr, "----------------------------\n");
 }
 
-std::string largeNumbers[10][16] = {
-  {"     000000000     ",
-    "   00:::::::::00   ",
-    " 00:::::::::::::00 ",
-    "0:::::::000:::::::0",
-    "0::::::0   0::::::0",
-    "0:::::0     0:::::0",
-    "0:::::0     0:::::0",
-    "0:::::0 000 0:::::0",
-    "0:::::0 000 0:::::0",
-    "0:::::0     0:::::0",
-    "0:::::0     0:::::0",
-    "0::::::0   0::::::0",
-    "0:::::::000:::::::0",
-    " 00:::::::::::::00 ",
-    "   00:::::::::00   ",
-    "     000000000     "},
-  {"  1111111   ",
-    " 1::::::1   ",
-    "1:::::::1   ",
-    "111:::::1   ",
-    "   1::::1   ",
-    "   1::::1   ",
-    "   1::::1   ",
-    "   1::::l   ",
-    "   1::::l   ",
-    "   1::::l   ",
-    "   1::::l   ",
-    "   1::::l   ",
-    "111::::::111",
-    "1::::::::::1",
-    "1::::::::::1",
-    "111111111111"},
-  {" 222222222222222    ",
-    "2:::::::::::::::22  ",
-    "2::::::222222:::::2 ",
-    "2222222     2:::::2 ",
-    "            2:::::2 ",
-    "            2:::::2 ",
-    "         2222::::2  ",
-    "    22222::::::22   ",
-    "  22::::::::222     ",
-    " 2:::::22222        ",
-    "2:::::2             ",
-    "2:::::2             ",
-    "2:::::2       222222",
-    "2::::::2222222:::::2",
-    "2::::::::::::::::::2",
-    "22222222222222222222"},
-  {" 333333333333333   ",
-    "3:::::::::::::::33 ",
-    "3::::::33333::::::3",
-    "3333333     3:::::3",
-    "            3:::::3",
-    "            3:::::3",
-    "    33333333:::::3 ",
-    "    3:::::::::::3  ",
-    "    33333333:::::3 ",
-    "            3:::::3",
-    "            3:::::3",
-    "            3:::::3",
-    "3333333     3:::::3",
-    "3::::::33333::::::3",
-    "3:::::::::::::::33 ",
-    " 333333333333333   "},
-  {"       444444444  ",
-    "      4::::::::4  ",
-    "     4:::::::::4  ",
-    "    4::::44::::4  ",
-    "   4::::4 4::::4  ",
-    "  4::::4  4::::4  ",
-    " 4::::4   4::::4  ",
-    "4::::444444::::444",
-    "4::::::::::::::::4",
-    "4444444444:::::444",
-    "          4::::4  ",
-    "          4::::4  ",
-    "          4::::4  ",
-    "        44::::::44",
-    "        4::::::::4",
-    "        4444444444"},
-  {"555555555555555555 ",
-    "5::::::::::::::::5 ",
-    "5::::::::::::::::5 ",
-    "5:::::555555555555 ",
-    "5:::::5            ",
-    "5:::::5            ",
-    "5:::::5555555555   ",
-    "5:::::::::::::::5  ",
-    "555555555555:::::5 ",
-    "            5:::::5",
-    "            5:::::5",
-    "5555555     5:::::5",
-    "5::::::55555::::::5",
-    " 55:::::::::::::55 ",
-    "   55:::::::::55   ",
-    "     555555555     "},
-  {"        66666666   ",
-    "       6::::::6    ",
-    "      6::::::6     ",
-    "     6::::::6      ",
-    "    6::::::6       ",
-    "   6::::::6        ",
-    "  6::::::6         ",
-    " 6::::::::66666    ",
-    "6::::::::::::::66  ",
-    "6::::::66666:::::6 ",
-    "6:::::6     6:::::6",
-    "6:::::6     6:::::6",
-    "6::::::66666::::::6",
-    " 66:::::::::::::66 ",
-    "   66:::::::::66   ",
-    "     666666666     "},
-  {"77777777777777777777",
-    "7::::::::::::::::::7",
-    "7::::::::::::::::::7",
-    "777777777777:::::::7",
-    "           7::::::7 ",
-    "          7::::::7  ",
-    "         7::::::7   ",
-    "        7::::::7    ",
-    "       7::::::7     ",
-    "      7::::::7      ",
-    "     7::::::7       ",
-    "    7::::::7        ",
-    "   7::::::7         ",
-    "  7::::::7          ",
-    " 7::::::7           ",
-    "77777777            "},
-  {"     888888888     ",
-    "   88:::::::::88   ",
-    " 88:::::::::::::88 ",
-    "8::::::88888::::::8",
-    "8:::::8     8:::::8",
-    "8:::::8     8:::::8",
-    " 8:::::88888:::::8 ",
-    "  8:::::::::::::8  ",
-    " 8:::::88888:::::8 ",
-    "8:::::8     8:::::8",
-    "8:::::8     8:::::8",
-    "8:::::8     8:::::8",
-    "8::::::88888::::::8",
-    " 88:::::::::::::88 ",
-    "   88:::::::::88   ",
-    "     888888888     "},
-  {"     999999999     ",
-    "   99:::::::::99   ",
-    " 99:::::::::::::99 ",
-    "9::::::99999::::::9",
-    "9:::::9     9:::::9",
-    "9:::::9     9:::::9",
-    " 9:::::99999::::::9",
-    "  99::::::::::::::9",
-    "    99999::::::::9 ",
-    "         9::::::9  ",
-    "        9::::::9   ",
-    "       9::::::9    ",
-    "      9::::::9     ",
-    "     9::::::9      ",
-    "    9::::::9       ",
-    "   99999999        "}
-};
-
-void Gesture::largePrint(int circleCount) {
-  int greenCount = circleCount / 10;
-  int redCount = circleCount % 10;
-  for (int i = 0; i < 16; i++) {
-    fprintf(stderr, "%s\t:\t%s\n", largeNumbers[greenCount][i].c_str(), largeNumbers[redCount][i].c_str());
-  }
+void Gesture::findCCL(const Mat& inputMatrix, const Mat& processMatrix, const Mat& outputMatrix) {
+  
+}
+void Gesture::findCentroid(const Mat& inputMatrix, float** stats) {
+  
 }

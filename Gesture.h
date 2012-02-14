@@ -1,6 +1,8 @@
+#ifndef GESTURE_H
+#define	GESTURE_H
+
 #include <vector>
 
-//#pragma once
 using namespace cv;
 
 class Gesture {
@@ -51,7 +53,9 @@ private:
     int outheight, outwidth, outstep, outdepth, outchannels;
     bool firstPass, display;
     Mat frameMatrix, outputMatrix, redMatrix, greenMatrix, tempMatrix,
-    template32Matrix, template48Matrix, template64Matrix, hsvMatrix;
+    template32Matrix, template48Matrix, template64Matrix, hsvMatrix,
+    cclMatrix;
+    float centroidStats[5];
 
     void nothing(const Mat& src, Mat& dst);
     void applyFlip(const Mat& src, Mat& dst);
@@ -68,5 +72,8 @@ private:
     void printInfo(const Mat &mat);
     void drawSquares(Mat& src, Vector<Point>& circles, int length, Scalar color);
     void showImages(const Mat& inputMatrix, const Mat& processMatrix, const Mat& outputMatrix);
-    void largePrint(int circleCount);
+    void findCCL(const Mat& inputMatrix, const Mat& processMatrix, const Mat& outputMatrix);
+    void findCentroid(const Mat& inputMatrix, float** stats);
 };
+
+#endif	/* GESTURE_H */
