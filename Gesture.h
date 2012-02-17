@@ -45,35 +45,44 @@ private:
     static const double S_MIN_R2 = 157.382812; // (61.718750)
     static const double S_MAX_R2 = 208.935482; // (81.935483)
 
+    static const double H_MIN_O1 = 2.477064; // (4.954129)
+    static const double H_MAX_O1 = 37.500000; // (75.000000)
+    static const double S_MIN_O1 = 114.636363; // (1.818182)
+    static const double S_MAX_O1 = 255.000000; // (100.000000)
+    static const double H_MIN_O2 = 2.477064; // (4.954129)
+    static const double H_MAX_O2 = 37.500000; // (75.000000)
+    static const double S_MIN_O2 = 114.636363; // (1.818182)
+    static const double S_MAX_O2 = 255.000000; // (100.000000)
+    
     IplImage* frameImage;
     IplImage* prevFrame;
     IplImage* procFrame;
     IplImage* postFrame;
     IplImage tempImage, outImage;
-    int outheight, outwidth, outstep, outdepth, outchannels;
-    bool firstPass, display;
-    Mat frameMatrix, outputMatrix, redMatrix, greenMatrix, tempMatrix,
+    Mat frameMatrix, outputMatrix, redMatrix, greenMatrix, orangeMatrix, tempMatrix,
     template32Matrix, template48Matrix, template64Matrix, hsvMatrix,
     cclMatrix;
     float centroidStats[5];
-
+    
+    // Runtime functions
+    void processStream(int index);
+    void processFile(const char *fileName);
+    void analyzeFile(const char *fileName, const char *suffix1, const char *suffix2);
+    // Image processing functions
     void nothing(const Mat& src, Mat& dst);
     void applyFlip(const Mat& src, Mat& dst);
     void applyMedian(const Mat& src, Mat& dst);
-    void applyInverse(const Mat& src, Mat& dst);
-    void applyHistory(const Mat& src, Mat& prev, Mat& dst);
-    void applyChRG(const Mat& src, Mat& dst, double rMean, double gMean, double rSDI, double gSDI, double thresh);
-    void applyChRB(const Mat& src, Mat& dst, double rMean, double bMean, double rSDI, double bSDI, double thresh);
-    void applyChRGB(const Mat& src, Mat& dst, double rMean, double gMean, double bMean, double rSDI, double gSDI, double bSDI, double thresh);
-    void applyGaussHSV(const Mat& src, Mat& dst, double hMean, double sMean, double vMean, double hSDI, double sSDI, double vSDI, double thresh);
     void applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, double sMin, double sMax, double vMin, double vMax);
-    void templateCircles(Mat& src, Mat& dst, Mat& templ, double thresh, Vector<Point>& circles);
-    void houghCircles(const Mat& src, Mat& dst, Mat& drawMatrix, Mat& templ);
-    void printInfo(const Mat &mat);
-    void drawSquares(Mat& src, Vector<Point>& circles, int length, Scalar color);
-    void showImages(const Mat& inputMatrix, const Mat& processMatrix, const Mat& outputMatrix);
-    void findCCL(const Mat& inputMatrix, const Mat& processMatrix, const Mat& outputMatrix);
+    void findCCL(const Mat& inputMatrix, Mat& outputMatrix, bool considerDiagonals);
     void findCentroid(const Mat& inputMatrix, float** stats);
+    void findCircles(Mat& src, Mat& dst, Mat& templ, double thresh, Vector<Point>& circles);
+    // Helper functions
+    uint minimum(const std::vector<uint> input);
+    // Debugging functions
+    void drawSquares(Mat& src, Vector<Point>& circles, int length, Scalar color);
+    void printCVTypes();
+    void printInfo(const Mat &mat);
+    void showImages(const Mat& inputMatrix, const Mat& processMatrix, const Mat& outputMatrix);
 };
 
 #endif	/* GESTURE_H */

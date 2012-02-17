@@ -1,4 +1,5 @@
 #include <sstream>
+#include <vector>
 #include "cv.h"
 #include "Gesture.h"
 #include "LargePrint.h"
@@ -12,15 +13,6 @@ int main(int argc, char** argv) {
 }
 
 Gesture::Gesture(int argc, char** argv) {
-  int c, save = 0;
-  std::stringstream debug;
-  int bufferIndex = 0, bufferModeCount, bufferModeIndex, gesture;
-  int gestureBuffer[BUFFER_SIZE], modeCounter[BUFFER_SIZE];
-  for (int i = 0; i < BUFFER_SIZE; i++) {
-    gestureBuffer[i] = 0;
-    modeCounter[i] = 0;
-  }
-  Vector<Point> greenCircles32, greenCircles48, greenCircles64, redCircles32, redCircles48, redCircles64;
   template32Matrix = imread("template-32.ppm", 0);
   template48Matrix = imread("template-48.ppm", 0);
   template64Matrix = imread("template-64.ppm", 0);
@@ -30,41 +22,6 @@ Gesture::Gesture(int argc, char** argv) {
   template48Matrix.convertTo(template48Matrix, CV_32FC1, 1.0 / 255.0, 0);
   template64Matrix.convertTo(template64Matrix, CV_32FC1, 1.0 / 255.0, 0);
 
-  //  fprintf(stderr, "CV_8UC1 is %d\n", CV_8UC1);
-  //  fprintf(stderr, "CV_8UC2 is %d\n", CV_8UC2);
-  //  fprintf(stderr, "CV_8UC3 is %d\n", CV_8UC3);
-  //  fprintf(stderr, "CV_8UC4 is %d\n", CV_8UC4);
-  //  fprintf(stderr, "\n");
-  //  fprintf(stderr, "CV_8SC1 is %d\n", CV_8SC1);
-  //  fprintf(stderr, "CV_8SC2 is %d\n", CV_8SC2);
-  //  fprintf(stderr, "CV_8SC3 is %d\n", CV_8SC3);
-  //  fprintf(stderr, "CV_8SC4 is %d\n", CV_8SC4);
-  //  fprintf(stderr, "\n");
-  //  fprintf(stderr, "CV_16UC1 is %d\n", CV_16UC1);
-  //  fprintf(stderr, "CV_16UC2 is %d\n", CV_16UC2);
-  //  fprintf(stderr, "CV_16UC3 is %d\n", CV_16UC3);
-  //  fprintf(stderr, "CV_16UC4 is %d\n", CV_16UC4);
-  //  fprintf(stderr, "\n");
-  //  fprintf(stderr, "CV_16SC1 is %d\n", CV_16SC1);
-  //  fprintf(stderr, "CV_16SC2 is %d\n", CV_16SC2);
-  //  fprintf(stderr, "CV_16SC3 is %d\n", CV_16SC3);
-  //  fprintf(stderr, "CV_16SC4 is %d\n", CV_16SC4);
-  //  fprintf(stderr, "\n");
-  //  fprintf(stderr, "CV_32SC1 is %d\n", CV_32SC1);
-  //  fprintf(stderr, "CV_32SC2 is %d\n", CV_32SC2);
-  //  fprintf(stderr, "CV_32SC3 is %d\n", CV_32SC3);
-  //  fprintf(stderr, "CV_32SC4 is %d\n", CV_32SC4);
-  //  fprintf(stderr, "\n");
-  //  fprintf(stderr, "CV_32FC1 is %d\n", CV_32FC1);
-  //  fprintf(stderr, "CV_32FC2 is %d\n", CV_32FC2);
-  //  fprintf(stderr, "CV_32FC3 is %d\n", CV_32FC3);
-  //  fprintf(stderr, "CV_32FC4 is %d\n", CV_32FC4);
-  //  fprintf(stderr, "\n");
-  //  fprintf(stderr, "CV_64FC1 is %d\n", CV_64FC1);
-  //  fprintf(stderr, "CV_64FC2 is %d\n", CV_64FC2);
-  //  fprintf(stderr, "CV_64FC3 is %d\n", CV_64FC3);
-  //  fprintf(stderr, "CV_64FC4 is %d\n", CV_64FC4);
-
   fprintf(stderr, "Hot keys: \n\tESC - quit the program\n");
   fprintf(stderr, "\ts   - save current input frame\n");
 
@@ -72,254 +29,34 @@ Gesture::Gesture(int argc, char** argv) {
   cvNamedWindow("Process", CV_WINDOW_AUTOSIZE);
   cvNamedWindow("Output", CV_WINDOW_AUTOSIZE);
 
-  if (argc == 2 && strlen(argv[1]) > 0 && !isdigit(argv[1][0])) {
-    // Run gesture recognition on a single file
-    // Load image
-    std::cout << "File is " << argv[1] << std::endl;
-    frameImage = cvLoadImage(argv[1]);
-    frameMatrix = cvarrToMat(frameImage);
-    if (DEBUG) {
-      cvWaitKey(0);
-    }
-
-    // Pre-processing
-    medianBlur(frameMatrix, frameMatrix, 5);
-    GaussianBlur(frameMatrix, frameMatrix, Size(9, 9), 1, 1);
-
-    // Colorspace processing
-    cvtColor(frameMatrix, hsvMatrix, CV_BGR2HSV);
-    applyTableHSV(hsvMatrix, greenMatrix, H_MIN_G, H_MAX_G, S_MIN_G, S_MAX_G, 0, 0);
-    if (H_MIN_R1 != H_MIN_R2) {
-      applyTableHSV(hsvMatrix, tempMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, 0, 0);
-      applyTableHSV(hsvMatrix, redMatrix, H_MIN_R2, H_MAX_R2, S_MIN_R2, S_MAX_R2, 0, 0);
-      add(tempMatrix, redMatrix, redMatrix);
-    } else {
-      applyTableHSV(hsvMatrix, redMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, 0, 0);
-    }
-
-    // Circle detection
-    // Normalize 0 to 1 so matching scores are in usable range
-    greenMatrix.convertTo(greenMatrix, CV_32FC1, 1.0 / 255.0, 0);
-    redMatrix.convertTo(redMatrix, CV_32FC1, 1.0 / 255.0, 0);
-    Mat blueMatrix(greenMatrix.rows, greenMatrix.cols, greenMatrix.type(), Scalar(0));
-    vector<Mat> bgr;
-    //Red 64
-    templateCircles(redMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, redCircles64);
-    if (DEBUG) {
-      bgr.clear();
-      bgr.push_back(blueMatrix);
-      bgr.push_back(greenMatrix);
-      bgr.push_back(redMatrix);
-      merge(bgr, tempMatrix);
-      normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
-      showImages(frameMatrix, tempMatrix, outputMatrix);
-    }
-    // Red 48
-    templateCircles(redMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, redCircles48);
-    if (DEBUG) {
-      bgr.clear();
-      bgr.push_back(blueMatrix);
-      bgr.push_back(greenMatrix);
-      bgr.push_back(redMatrix);
-      merge(bgr, tempMatrix);
-      normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
-      showImages(frameMatrix, tempMatrix, outputMatrix);
-    }
-    // Red 32
-    templateCircles(redMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, redCircles32);
-    if (DEBUG) {
-      bgr.clear();
-      bgr.push_back(blueMatrix);
-      bgr.push_back(greenMatrix);
-      bgr.push_back(redMatrix);
-      merge(bgr, tempMatrix);
-      normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
-      showImages(frameMatrix, tempMatrix, outputMatrix);
-    }
-    // Green 64
-    templateCircles(greenMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, greenCircles64);
-    if (DEBUG) {
-      bgr.clear();
-      bgr.push_back(blueMatrix);
-      bgr.push_back(greenMatrix);
-      bgr.push_back(redMatrix);
-      merge(bgr, tempMatrix);
-      normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
-      showImages(frameMatrix, tempMatrix, outputMatrix);
-    }
-    // Green 48
-    templateCircles(greenMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, greenCircles48);
-    if (DEBUG) {
-      bgr.clear();
-      bgr.push_back(blueMatrix);
-      bgr.push_back(greenMatrix);
-      bgr.push_back(redMatrix);
-      merge(bgr, tempMatrix);
-      normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
-      showImages(frameMatrix, tempMatrix, outputMatrix);
-    }
-    // Green 32
-    templateCircles(greenMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, greenCircles32);
-    if (DEBUG) {
-      bgr.clear();
-      bgr.push_back(blueMatrix);
-      bgr.push_back(greenMatrix);
-      bgr.push_back(redMatrix);
-      merge(bgr, tempMatrix);
-      normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
-      showImages(frameMatrix, tempMatrix, outputMatrix);
-    }
-    fprintf(stderr, "%lu green circles, %lu red circles.\n",
-            (greenCircles32.size() + greenCircles48.size() + greenCircles64.size()),
-            (redCircles32.size() + redCircles48.size() + redCircles64.size()));
-
-    // Output images
-    // Segmentation image
-    bgr.clear();
-    bgr.push_back(blueMatrix);
-    bgr.push_back(greenMatrix);
-    bgr.push_back(redMatrix);
-    merge(bgr, tempMatrix);
-    // Box detected circles in images
-    drawSquares(frameMatrix, greenCircles32, template32Matrix.cols, Scalar(0, 255, 0));
-    drawSquares(frameMatrix, greenCircles48, template48Matrix.cols, Scalar(0, 255, 0));
-    drawSquares(frameMatrix, greenCircles64, template64Matrix.cols, Scalar(0, 255, 0));
-    drawSquares(frameMatrix, redCircles32, template32Matrix.cols, Scalar(0, 0, 255));
-    drawSquares(frameMatrix, redCircles48, template48Matrix.cols, Scalar(0, 0, 255));
-    drawSquares(frameMatrix, redCircles64, template64Matrix.cols, Scalar(0, 0, 255));
-    drawSquares(tempMatrix, greenCircles32, template32Matrix.cols, Scalar(0, 255, 0));
-    drawSquares(tempMatrix, greenCircles48, template48Matrix.cols, Scalar(0, 255, 0));
-    drawSquares(tempMatrix, greenCircles64, template64Matrix.cols, Scalar(0, 255, 0));
-    drawSquares(tempMatrix, redCircles32, template32Matrix.cols, Scalar(0, 0, 255));
-    drawSquares(tempMatrix, redCircles48, template48Matrix.cols, Scalar(0, 0, 255));
-    drawSquares(tempMatrix, redCircles64, template64Matrix.cols, Scalar(0, 0, 255));
-
-    // Display results
-    tempImage = tempMatrix;
-    normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
-    outImage = outputMatrix;
-    cvShowImage("Input", frameImage);
-    cvShowImage("Process", &tempImage);
-    cvShowImage("Output", &outImage);
-
-    // Pause before quitting
-    c = cvWaitKey();
-    while ((char) c != 27) {
-      c = cvWaitKey();
-    }
-    cvDestroyWindow("Input");
-    cvDestroyWindow("Process");
-    cvDestroyWindow("Output");
-    return;
-  } else if (argc == 4 && strlen(argv[1]) > 0 && !isdigit(argv[1][0])) {
-    // OpenCV (uint) / OpenCV (float) / GIMP
-    // H: [0,180] / [0,360] / [0,360]
-    // S: [0,255] / [0,1] / [0,100]
-    // V: [0,255] / [0,1] / [0,100]
-    // We are calculating the thresholds in OpenCV *FLOAT* HSV format
-    // We are analyzing images in OpenCV *UINT* HSV format
-    // Manual thehold checks in GIMP are in *GIMP* HSV format
-    // They are all different so don't forget the conversions!
-    double splitPointUInt = 90.0;
-    
-    // Calculate image statistics on a single file
-    double hMin1, hMax1, sMin1, sMax1, hMin2, hMax2, sMin2, sMax2;
-    // Load image
-    std::cout << "File is " << argv[1] << std::endl;
-    frameImage = cvLoadImage(argv[1]);
-    frameMatrix = cvarrToMat(frameImage);
-
-    // Colorspace processing
-    frameMatrix.convertTo(frameMatrix, CV_32FC3);
-    cvtColor(frameMatrix, hsvMatrix, CV_BGR2HSV);
-
-    if (strcmp(argv[2], argv[3]) == 0) {
-      // Use for things with valid entries at only one point in HSV spectrum
-      // both sets of min/maxes are printed out, but the program will on
-      hMin1 = 360, hMax1 = 0, sMin1 = 1, sMax1 = 0;
-    } else {
-      // Use for things with valid entries at two points in HSV spectrum
-      //    (ex: Red has entries near H = 0 and H = 180))
-      // ___1 is for lower half of H spectrum, ___2 is for upper half
-      hMin1 = splitPointUInt * 2, hMax1 = 0, sMin1 = 1, sMax1 = 0, hMin2 = 360, hMax2 = splitPointUInt * 2, sMin2 = 1, sMax2 = 0;
-    }
-    int valid = 0, invalid = 0;
-    for (int i = 0; i < hsvMatrix.rows; i++) for (int j = 0; j < hsvMatrix.cols; j++) {
-        if (hsvMatrix.at<Vec3f > (i, j)[0] != 0 && hsvMatrix.at<Vec3f > (i, j)[1] != 0 &&
-                hsvMatrix.at<Vec3f > (i, j)[2] != 255) {
-          valid++;
-          if (strcmp(argv[2], argv[3]) == 0) {
-            if (hsvMatrix.at<Vec3f > (i, j)[0] < hMin1) {
-              hMin1 = hsvMatrix.at<Vec3f > (i, j)[0];
-            }
-            if (hsvMatrix.at<Vec3f > (i, j)[0] > hMax1) {
-              hMax1 = hsvMatrix.at<Vec3f > (i, j)[0];
-            }
-            if (hsvMatrix.at<Vec3f > (i, j)[1] < sMin1) {
-              sMin1 = hsvMatrix.at<Vec3f > (i, j)[1];
-            }
-            if (hsvMatrix.at<Vec3f > (i, j)[1] > sMax1) {
-              sMax1 = hsvMatrix.at<Vec3f > (i, j)[1];
-            }
-          } else {
-            if (hsvMatrix.at<Vec3f > (i, j)[0] <= splitPointUInt) {
-              if (hsvMatrix.at<Vec3f > (i, j)[0] < hMin1) {
-                hMin1 = hsvMatrix.at<Vec3f > (i, j)[0];
-              }
-              if (hsvMatrix.at<Vec3f > (i, j)[0] > hMax1) {
-                hMax1 = hsvMatrix.at<Vec3f > (i, j)[0];
-              }
-              if (hsvMatrix.at<Vec3f > (i, j)[1] < sMin1) {
-                sMin1 = hsvMatrix.at<Vec3f > (i, j)[1];
-              }
-              if (hsvMatrix.at<Vec3f > (i, j)[1] > sMax1) {
-                sMax1 = hsvMatrix.at<Vec3f > (i, j)[1];
-              }
-            } else {
-              if (hsvMatrix.at<Vec3f > (i, j)[0] < hMin2) {
-                hMin2 = hsvMatrix.at<Vec3f > (i, j)[0];
-              }
-              if (hsvMatrix.at<Vec3f > (i, j)[0] > hMax2) {
-                hMax2 = hsvMatrix.at<Vec3f > (i, j)[0];
-              }
-              if (hsvMatrix.at<Vec3f > (i, j)[1] < sMin2) {
-                sMin2 = hsvMatrix.at<Vec3f > (i, j)[1];
-              }
-              if (hsvMatrix.at<Vec3f > (i, j)[1] > sMax2) {
-                sMax2 = hsvMatrix.at<Vec3f > (i, j)[1];
-              }
-            }
-          }
-        } else {
-          invalid++;
-        }
-      }
-    fprintf(stderr, "    static const double H_MIN_%s = %f; // (%f)\n", argv[2], hMin1 / 2.0, hMin1);
-    fprintf(stderr, "    static const double H_MAX_%s = %f; // (%f)\n", argv[2], hMax1 / 2.0, hMax1);
-    fprintf(stderr, "    static const double S_MIN_%s = %f; // (%f)\n", argv[2], sMin1 * 255.0, sMin1 * 100.0);
-    fprintf(stderr, "    static const double S_MAX_%s = %f; // (%f)\n", argv[2], sMax1 * 255.0, sMax1 * 100.0);
-    if (strcmp(argv[2], argv[3]) != 0) {
-      fprintf(stderr, "    static const double H_MIN_%s = %f; // (%f)\n", argv[3], hMin2 / 2.0, hMin2);
-      fprintf(stderr, "    static const double H_MAX_%s = %f; // (%f)\n", argv[3], hMax2 / 2.0, hMax2);
-      fprintf(stderr, "    static const double S_MIN_%s = %f; // (%f)\n", argv[3], sMin2 * 255.0, sMin2 * 100.0);
-      fprintf(stderr, "    static const double S_MAX_%s = %f; // (%f)\n", argv[3], sMax2 * 255.0, sMax2 * 100.0);
-    }
-    fprintf(stderr, "VALID=%d\tINVALID=%d\n", valid, invalid);
-
-    cvDestroyWindow("Input");
-    cvDestroyWindow("Process");
-    cvDestroyWindow("Output");
-    return;
-  }
-
-  // Else, run gesture recognition on a video stream
-  // Process video
-  firstPass = true;
-  CvCapture* capture = 0;
-
   if (argc == 1 || (argc == 2 && strlen(argv[1]) == 1 && isdigit(argv[1][0]))) {
-    capture = cvCreateCameraCapture(argc == 2 ? argv[1][0] - '0' : 0);
+    int index = argc == 2 ? argv[1][0] - '0' : 0;
+    processStream(index);
+  } else if (argc == 2 && strlen(argv[1]) > 0 && !isdigit(argv[1][0])) {
+    processFile(argv[1]);
+  } else if (argc == 4 && strlen(argv[1]) > 0 && !isdigit(argv[1][0])) {
+    analyzeFile(argv[1], argv[2], argv[3]);
   }
+  
+  cvDestroyWindow("Input");
+  cvDestroyWindow("Process");
+  cvDestroyWindow("Output");
+  return;
+}
+
+void Gesture::processStream(int index) {
+  // Run gesture recognition on a video stream
+  int c, save = 0;
+  std::stringstream debug;
+  int bufferIndex = 0, bufferModeCount, bufferModeIndex, gesture;
+  int gestureBuffer[BUFFER_SIZE], modeCounter[BUFFER_SIZE];
+  for (int i = 0; i < BUFFER_SIZE; i++) {
+    gestureBuffer[i] = 0;
+    modeCounter[i] = 0;
+  }
+  Vector<Point> greenCircles32, greenCircles48, greenCircles64, redCircles32, redCircles48, redCircles64;
+  bool display, firstPass = true;
+  CvCapture* capture = cvCreateCameraCapture(index);
   cvSetCaptureProperty(capture, CV_CAP_PROP_FRAME_WIDTH, 640);
   cvSetCaptureProperty(capture, CV_CAP_PROP_FRAME_HEIGHT, 480);
 
@@ -357,12 +94,12 @@ Gesture::Gesture(int argc, char** argv) {
     redMatrix.convertTo(redMatrix, CV_32FC1, 1.0 / 255.0, 0);
     Mat blueMatrix(greenMatrix.rows, greenMatrix.cols, greenMatrix.type(), Scalar(0));
     vector<Mat> bgr;
-    templateCircles(redMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, redCircles64);
-    templateCircles(redMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, redCircles48);
-    templateCircles(redMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, redCircles32);
-    templateCircles(greenMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, greenCircles64);
-    templateCircles(greenMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, greenCircles48);
-    templateCircles(greenMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, greenCircles32);
+    findCircles(redMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, redCircles64);
+    findCircles(redMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, redCircles48);
+    findCircles(redMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, redCircles32);
+    findCircles(greenMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, greenCircles64);
+    findCircles(greenMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, greenCircles48);
+    findCircles(greenMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, greenCircles32);
     fprintf(stderr, "%lu green circles, %lu red circles.\n",
             (greenCircles32.size() + greenCircles48.size() + greenCircles64.size()),
             (redCircles32.size() + redCircles48.size() + redCircles64.size()));
@@ -471,11 +208,198 @@ Gesture::Gesture(int argc, char** argv) {
   }
   // Destroy and quit
   cvReleaseCapture(&capture);
-  cvDestroyWindow("Input");
-  cvDestroyWindow("Process");
-  cvDestroyWindow("Output");
+}
 
-  return;
+void Gesture::processFile(const char* fileName) {
+  // Run gesture recognition on a single file
+  Vector<Point> greenCircles32, greenCircles48, greenCircles64, redCircles32, redCircles48, redCircles64;
+  // Load image
+//  std::cout << "File is " << argv[1] << std::endl;
+  std::cout << "File is " << fileName << std::endl;
+//  frameImage = cvLoadImage(argv[1]);
+  frameImage = cvLoadImage(fileName);
+  frameMatrix = cvarrToMat(frameImage);
+  if (DEBUG) {
+    cvWaitKey(0);
+  }
+
+  // Pre-processing
+  medianBlur(frameMatrix, frameMatrix, 5);
+  GaussianBlur(frameMatrix, frameMatrix, Size(9, 9), 1, 1);
+
+  // Colorspace processing
+  cvtColor(frameMatrix, hsvMatrix, CV_BGR2HSV);
+  applyTableHSV(hsvMatrix, greenMatrix, H_MIN_G, H_MAX_G, S_MIN_G, S_MAX_G, 0, 0);
+  if (H_MIN_R1 != H_MIN_R2) {
+    applyTableHSV(hsvMatrix, tempMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, 0, 0);
+    applyTableHSV(hsvMatrix, redMatrix, H_MIN_R2, H_MAX_R2, S_MIN_R2, S_MAX_R2, 0, 0);
+    add(tempMatrix, redMatrix, redMatrix);
+  } else {
+    applyTableHSV(hsvMatrix, redMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, 0, 0);
+  }
+  if (H_MIN_O1 != H_MIN_O2) {
+    applyTableHSV(hsvMatrix, tempMatrix, H_MIN_O1, H_MAX_O1, S_MIN_O1, S_MAX_O1, 0, 0);
+    applyTableHSV(hsvMatrix, orangeMatrix, H_MIN_O2, H_MAX_O2, S_MIN_O2, S_MAX_O2, 0, 0);
+    add(tempMatrix, orangeMatrix, orangeMatrix);
+  } else {
+    applyTableHSV(hsvMatrix, orangeMatrix, H_MIN_O1, H_MAX_O1, S_MIN_O1, S_MAX_O1, 0, 0);
+  }
+  std::cout << "greenMatrix is type " << greenMatrix.type() << std::endl;
+  std::cout << "greenMatrix[1, 1] is " << greenMatrix.at<uchar > (1, 1) << std::endl;
+  fprintf(stderr, "greenMatrix[1, 1] is %d\n", greenMatrix.at<uchar > (1, 1));
+
+  findCCL(orangeMatrix, cclMatrix, true);
+
+  // Circle detection
+  // Normalize 0 to 1 so matching scores are in usable range
+  greenMatrix.convertTo(greenMatrix, CV_32FC1, 1.0 / 255.0, 0);
+  redMatrix.convertTo(redMatrix, CV_32FC1, 1.0 / 255.0, 0);
+  Mat blueMatrix(greenMatrix.rows, greenMatrix.cols, greenMatrix.type(), Scalar(0));
+  vector<Mat> bgr;
+  findCircles(redMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, redCircles64);
+  findCircles(redMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, redCircles48);
+  findCircles(redMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, redCircles32);
+  findCircles(greenMatrix, outputMatrix, template64Matrix, THRESH_TEMPLATE_64, greenCircles64);
+  findCircles(greenMatrix, outputMatrix, template48Matrix, THRESH_TEMPLATE_48, greenCircles48);
+  findCircles(greenMatrix, outputMatrix, template32Matrix, THRESH_TEMPLATE_32, greenCircles32);
+  fprintf(stderr, "%lu green circles, %lu red circles.\n",
+          (greenCircles32.size() + greenCircles48.size() + greenCircles64.size()),
+          (redCircles32.size() + redCircles48.size() + redCircles64.size()));
+
+  // Output images
+  // Segmentation image
+  bgr.clear();
+  bgr.push_back(blueMatrix);
+  bgr.push_back(greenMatrix);
+  bgr.push_back(redMatrix);
+  merge(bgr, tempMatrix);
+  // Box detected circles in images
+  drawSquares(frameMatrix, greenCircles32, template32Matrix.cols, Scalar(0, 255, 0));
+  drawSquares(frameMatrix, greenCircles48, template48Matrix.cols, Scalar(0, 255, 0));
+  drawSquares(frameMatrix, greenCircles64, template64Matrix.cols, Scalar(0, 255, 0));
+  drawSquares(frameMatrix, redCircles32, template32Matrix.cols, Scalar(0, 0, 255));
+  drawSquares(frameMatrix, redCircles48, template48Matrix.cols, Scalar(0, 0, 255));
+  drawSquares(frameMatrix, redCircles64, template64Matrix.cols, Scalar(0, 0, 255));
+  drawSquares(tempMatrix, greenCircles32, template32Matrix.cols, Scalar(0, 255, 0));
+  drawSquares(tempMatrix, greenCircles48, template48Matrix.cols, Scalar(0, 255, 0));
+  drawSquares(tempMatrix, greenCircles64, template64Matrix.cols, Scalar(0, 255, 0));
+  drawSquares(tempMatrix, redCircles32, template32Matrix.cols, Scalar(0, 0, 255));
+  drawSquares(tempMatrix, redCircles48, template48Matrix.cols, Scalar(0, 0, 255));
+  drawSquares(tempMatrix, redCircles64, template64Matrix.cols, Scalar(0, 0, 255));
+
+  // Display results
+  //    tempImage = tempMatrix;
+  tempImage = orangeMatrix;
+  //    normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
+  //    outImage = outputMatrix;
+  outImage = cclMatrix;
+  cvShowImage("Input", frameImage);
+  cvShowImage("Process", &tempImage);
+  cvShowImage("Output", &outImage);
+
+  // Pause before quitting
+  char c = cvWaitKey();
+  while ((char) c != 27) {
+    c = cvWaitKey();
+  }
+}
+
+void Gesture::analyzeFile(const char *fileName, const char *suffix1, const char *suffix2) {
+  // OpenCV (uint) / OpenCV (float) / GIMP
+  // H: [0,180] / [0,360] / [0,360]
+  // S: [0,255] / [0,1] / [0,100]
+  // V: [0,255] / [0,1] / [0,100]
+  // We are calculating the thresholds in OpenCV *FLOAT* HSV format
+  // We are analyzing images in OpenCV *UINT* HSV format
+  // Manual thehold checks in GIMP are in *GIMP* HSV format
+  // They are all different so don't forget the conversions!
+  double splitPointUInt = 90.0;
+
+  // Calculate image statistics on a single file
+  double hMin1, hMax1, sMin1, sMax1, hMin2, hMax2, sMin2, sMax2;
+  // Load image
+  std::cout << "File is " << fileName << std::endl;
+  frameImage = cvLoadImage(fileName);
+  frameMatrix = cvarrToMat(frameImage);
+
+  // Colorspace processing
+  frameMatrix.convertTo(frameMatrix, CV_32FC3);
+  cvtColor(frameMatrix, hsvMatrix, CV_BGR2HSV);
+
+//  if (strcmp(argv[2], argv[3]) == 0) {
+  if (strcmp(suffix1, suffix2) == 0) {
+    // Use for things with valid entries at only one point in HSV spectrum
+    // both sets of min/maxes are printed out, but the program will on
+    hMin1 = 360, hMax1 = 0, sMin1 = 1, sMax1 = 0;
+  } else {
+    // Use for things with valid entries at two points in HSV spectrum
+    //    (ex: Red has entries near H = 0 and H = 180))
+    // ___1 is for lower half of H spectrum, ___2 is for upper half
+    hMin1 = splitPointUInt * 2, hMax1 = 0, sMin1 = 1, sMax1 = 0, hMin2 = 360, hMax2 = splitPointUInt * 2, sMin2 = 1, sMax2 = 0;
+  }
+  int valid = 0, invalid = 0;
+  for (int i = 0; i < hsvMatrix.rows; i++) for (int j = 0; j < hsvMatrix.cols; j++) {
+      if (hsvMatrix.at<Vec3f > (i, j)[0] != 0 && hsvMatrix.at<Vec3f > (i, j)[1] != 0 &&
+              hsvMatrix.at<Vec3f > (i, j)[2] != 255) {
+        valid++;
+//        if (strcmp(argv[2], argv[3]) == 0) {
+        if (strcmp(suffix1, suffix2) == 0) {
+          if (hsvMatrix.at<Vec3f > (i, j)[0] < hMin1) {
+            hMin1 = hsvMatrix.at<Vec3f > (i, j)[0];
+          }
+          if (hsvMatrix.at<Vec3f > (i, j)[0] > hMax1) {
+            hMax1 = hsvMatrix.at<Vec3f > (i, j)[0];
+          }
+          if (hsvMatrix.at<Vec3f > (i, j)[1] < sMin1) {
+            sMin1 = hsvMatrix.at<Vec3f > (i, j)[1];
+          }
+          if (hsvMatrix.at<Vec3f > (i, j)[1] > sMax1) {
+            sMax1 = hsvMatrix.at<Vec3f > (i, j)[1];
+          }
+        } else {
+          if (hsvMatrix.at<Vec3f > (i, j)[0] <= splitPointUInt) {
+            if (hsvMatrix.at<Vec3f > (i, j)[0] < hMin1) {
+              hMin1 = hsvMatrix.at<Vec3f > (i, j)[0];
+            }
+            if (hsvMatrix.at<Vec3f > (i, j)[0] > hMax1) {
+              hMax1 = hsvMatrix.at<Vec3f > (i, j)[0];
+            }
+            if (hsvMatrix.at<Vec3f > (i, j)[1] < sMin1) {
+              sMin1 = hsvMatrix.at<Vec3f > (i, j)[1];
+            }
+            if (hsvMatrix.at<Vec3f > (i, j)[1] > sMax1) {
+              sMax1 = hsvMatrix.at<Vec3f > (i, j)[1];
+            }
+          } else {
+            if (hsvMatrix.at<Vec3f > (i, j)[0] < hMin2) {
+              hMin2 = hsvMatrix.at<Vec3f > (i, j)[0];
+            }
+            if (hsvMatrix.at<Vec3f > (i, j)[0] > hMax2) {
+              hMax2 = hsvMatrix.at<Vec3f > (i, j)[0];
+            }
+            if (hsvMatrix.at<Vec3f > (i, j)[1] < sMin2) {
+              sMin2 = hsvMatrix.at<Vec3f > (i, j)[1];
+            }
+            if (hsvMatrix.at<Vec3f > (i, j)[1] > sMax2) {
+              sMax2 = hsvMatrix.at<Vec3f > (i, j)[1];
+            }
+          }
+        }
+      } else {
+        invalid++;
+      }
+    }
+  fprintf(stderr, "    static const double H_MIN_%s = %f; // (%f)\n", suffix1, hMin1 / 2.0, hMin1);
+  fprintf(stderr, "    static const double H_MAX_%s = %f; // (%f)\n", suffix1, hMax1 / 2.0, hMax1);
+  fprintf(stderr, "    static const double S_MIN_%s = %f; // (%f)\n", suffix1, sMin1 * 255.0, sMin1 * 100.0);
+  fprintf(stderr, "    static const double S_MAX_%s = %f; // (%f)\n", suffix1, sMax1 * 255.0, sMax1 * 100.0);
+  if (strcmp(suffix1, suffix2) != 0) {
+    fprintf(stderr, "    static const double H_MIN_%s = %f; // (%f)\n", suffix2, hMin2 / 2.0, hMin2);
+    fprintf(stderr, "    static const double H_MAX_%s = %f; // (%f)\n", suffix2, hMax2 / 2.0, hMax2);
+    fprintf(stderr, "    static const double S_MIN_%s = %f; // (%f)\n", suffix2, sMin2 * 255.0, sMin2 * 100.0);
+    fprintf(stderr, "    static const double S_MAX_%s = %f; // (%f)\n", suffix2, sMax2 * 255.0, sMax2 * 100.0);
+  }
+  fprintf(stderr, "VALID=%d\tINVALID=%d\n", valid, invalid);
 }
 
 void Gesture::nothing(const Mat& src, Mat& dst) {
@@ -490,213 +414,6 @@ void Gesture::applyFlip(const Mat& src, Mat& dst) {
 
 void Gesture::applyMedian(const Mat& src, Mat& dst) {
   medianBlur(src, dst, 5);
-  return;
-}
-
-void Gesture::applyInverse(const Mat& src, Mat& dst) {
-  int width = src.cols;
-  int height = src.rows;
-  int channels = src.channels();
-  int depth = src.depth();
-  int step = src.step;
-  uchar *data = src.data;
-  uchar *postData;
-  if (firstPass) {
-    postFrame = cvCreateImage(cvSize(width, height), depth, channels);
-    postData = (uchar *) postFrame->imageData;
-  }
-  for (int i = 0; i < height; i++) for (int j = 0; j < width; j++) for (int k = 0; k < channels; k++) {
-        postData[i * step + j * channels + k] = 255 - data[i * step + j * channels + k];
-      }
-  return;
-}
-
-void Gesture::applyHistory(const Mat& src, Mat& prev, Mat& dst) {
-  int width = src.cols;
-  int height = src.rows;
-  int depth = src.depth();
-  if (firstPass) {
-    procFrame = cvCreateImage(cvSize(width, height), depth, 1);
-    postFrame = cvCreateImage(cvSize(width, height), depth, 1);
-    //tr=128;
-    //bitImage=cvCreateImage(cvSize(frame->width,frame->height),frame->depth,1);
-    cvCvtColor(frameImage, procFrame, CV_BGR2GRAY);
-    prevFrame = cvCloneImage(procFrame);
-    return;
-  }
-  cvCvtColor(frameImage, procFrame, CV_BGR2GRAY);
-  cvAbsDiff(prevFrame, procFrame, postFrame);
-  //cvThreshold(postFrame,bitImage,tr,255,CV_THRESH_BINARY);
-  //cvShowImage("CamSub 1",bitImage);   
-
-  prevFrame = cvCloneImage(procFrame);
-
-  return;
-}
-
-void Gesture::applyChRG(const Mat& src, Mat& dst, double rMean, double gMean, double rSDI, double gSDI, double thresh) {
-  // Separate channels into single channel float matrices
-  vector<Mat> bgr;
-  split(src, bgr);
-  Mat rFloat, gFloat, bFloat;
-  // BGR ordering
-  bgr[2].convertTo(rFloat, CV_32FC1, 1.0, 0);
-  bgr[1].convertTo(gFloat, CV_32FC1, 1.0, 0);
-  bgr[0].convertTo(bFloat, CV_32FC1, 1.0, 0);
-  // Compute chromacity for r and g
-  Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, bChrom, bChromV, rGauss, gGauss, bGauss, d, expTerm, outMatrix;
-  add(rFloat, gFloat, temp1);
-  add(temp1, bFloat, temp2);
-  add(temp2, Scalar(1.0), denom);
-  divide(rFloat, denom, rChrom);
-  divide(gFloat, denom, gChrom);
-  divide(bFloat, denom, bChrom);
-
-  // Compute gaussian probability pixel is on hand
-  rChromV = rChrom.reshape(0, 1);
-  gChromV = gChrom.reshape(0, 1);
-  bChromV = bChrom.reshape(0, 1);
-  // r
-  subtract(rChromV, Scalar(rMean), temp1);
-  multiply(temp1, Scalar(rSDI), temp2);
-  rGauss = temp2.mul(temp1);
-  // g
-  subtract(gChromV, Scalar(gMean), temp1);
-  multiply(temp1, Scalar(gSDI), temp2);
-  gGauss = temp2.mul(temp1);
-  add(rGauss, gGauss, d);
-
-  multiply(d, Scalar(-0.5), expTerm);
-  exp(expTerm, dst);
-  dst = dst.reshape(0, 480);
-  
-  threshold(dst, dst, thresh, 255, THRESH_BINARY);
-
-  return;
-}
-
-void Gesture::applyChRB(const Mat& src, Mat& dst, double rMean, double bMean, double rSDI, double bSDI, double thresh) {
-  // Separate channels into single channel float matrices
-  vector<Mat> bgr;
-  split(src, bgr);
-  Mat rFloat, gFloat, bFloat;
-  // BGR ordering
-  bgr[2].convertTo(rFloat, CV_32FC1, 1.0, 0);
-  bgr[1].convertTo(gFloat, CV_32FC1, 1.0, 0);
-  bgr[0].convertTo(bFloat, CV_32FC1, 1.0, 0);
-  // Compute chromacity for r and g
-  Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, bChrom, bChromV, rGauss, gGauss, bGauss, d, expTerm, outMatrix;
-  add(rFloat, gFloat, temp1);
-  add(temp1, bFloat, temp2);
-  add(temp2, Scalar(1.0), denom);
-  divide(rFloat, denom, rChrom);
-  divide(gFloat, denom, gChrom);
-  divide(bFloat, denom, bChrom);
-
-  // Compute gaussian probability pixel is on hand
-  rChromV = rChrom.reshape(0, 1);
-  gChromV = gChrom.reshape(0, 1);
-  bChromV = bChrom.reshape(0, 1);
-  // r
-  subtract(rChromV, Scalar(rMean), temp1);
-  multiply(temp1, Scalar(rSDI), temp2);
-  rGauss = temp2.mul(temp1);
-  // b
-  subtract(bChromV, Scalar(bMean), temp1);
-  multiply(temp1, Scalar(bSDI), temp2);
-  bGauss = temp2.mul(temp1);
-  add(rGauss, bGauss, d);
-
-  multiply(d, Scalar(-0.5), expTerm);
-  exp(expTerm, dst);
-  dst = dst.reshape(0, 480);
-  
-  threshold(dst, dst, thresh, 255, THRESH_BINARY);
-
-  return;
-}
-
-void Gesture::applyChRGB(const Mat& src, Mat& dst, double rMean, double gMean, double bMean, double rSDI, double gSDI, double bSDI, double thresh) {
-  // Separate channels into single channel float matrices
-  vector<Mat> bgr;
-  split(src, bgr);
-  Mat rFloat, gFloat, bFloat;
-  // BGR ordering
-  bgr[2].convertTo(rFloat, CV_32FC1, 1.0, 0);
-  bgr[1].convertTo(gFloat, CV_32FC1, 1.0, 0);
-  bgr[0].convertTo(bFloat, CV_32FC1, 1.0, 0);
-  // Compute chromacity for r and g
-  Mat temp1, temp2, denom, rChrom, rChromV, gChrom, gChromV, bChrom, bChromV, rGauss, gGauss, bGauss, d, expTerm, outMatrix;
-  add(rFloat, gFloat, temp1);
-  add(temp1, bFloat, temp2);
-  add(temp2, Scalar(1.0), denom);
-  divide(rFloat, denom, rChrom);
-  divide(gFloat, denom, gChrom);
-  divide(bFloat, denom, bChrom);
-
-  // Compute gaussian probability pixel is on hand
-  rChromV = rChrom.reshape(0, 1);
-  gChromV = gChrom.reshape(0, 1);
-  bChromV = bChrom.reshape(0, 1);
-  // r
-  subtract(rChromV, Scalar(rMean), temp1);
-  multiply(temp1, Scalar(rSDI), temp2);
-  rGauss = temp2.mul(temp1);
-  // g
-  subtract(gChromV, Scalar(gMean), temp1);
-  multiply(temp1, Scalar(gSDI), temp2);
-  gGauss = temp2.mul(temp1);
-  add(rGauss, gGauss, d);
-  // b
-  subtract(bChromV, Scalar(bMean), temp1);
-  multiply(temp1, Scalar(bSDI), temp2);
-  bGauss = temp2.mul(temp1);
-  add(d, bGauss, d);
-
-  multiply(d, Scalar(-0.5), expTerm);
-  exp(expTerm, dst);
-  dst = dst.reshape(0, 480);
-  
-  threshold(dst, dst, thresh, 255, THRESH_BINARY);
-
-  return;
-}
-
-void Gesture::applyGaussHSV(const Mat& src, Mat& dst, double hMean, double sMean, double vMean, double hSDI, double sSDI, double vSDI, double thresh) {
-  // Separate channels into single channel float matrices
-  cvtColor(src, dst, CV_BGR2HSV);
-  vector<Mat> hsv;
-  split(dst, hsv);
-  Mat hFloat, sFloat, vFloat;
-  hsv[0].convertTo(hFloat, CV_32FC1, 1.0, 0);
-  hsv[1].convertTo(sFloat, CV_32FC1, 1.0, 0);
-  hsv[2].convertTo(vFloat, CV_32FC1, 1.0, 0);
-
-  // Compute gaussian probability pixel is on hand
-  Mat hV, sV, vV, temp1, temp2, hGauss, sGauss, vGauss, d, expTerm;
-  hV = hFloat.reshape(0, 1);
-  sV = sFloat.reshape(0, 1);
-  vV = vFloat.reshape(0, 1);
-  // r
-  subtract(hV, Scalar(hMean), temp1);
-  multiply(temp1, Scalar(hSDI), temp2);
-  hGauss = temp2.mul(temp1);
-  // g
-  subtract(sV, Scalar(sMean), temp1);
-  multiply(temp1, Scalar(sSDI), temp2);
-  sGauss = temp2.mul(temp1);
-  add(hGauss, sGauss, d);
-  // b
-  subtract(vV, Scalar(vMean), temp1);
-  multiply(temp1, Scalar(vSDI), temp2);
-  vGauss = temp2.mul(temp1);
-  add(d, vGauss, d);
-
-  multiply(d, Scalar(-0.5), expTerm);
-  exp(expTerm, dst);
-  dst = dst.reshape(0, 480);
-  threshold(dst, dst, thresh, 255, THRESH_BINARY);
-
   return;
 }
 
@@ -724,7 +441,139 @@ void Gesture::applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, 
   return;
 }
 
-void Gesture::templateCircles(Mat& src, Mat& dst, Mat& templ, double thresh, Vector<Point>& circles) {
+void Gesture::findCCL(const Mat& inputMatrix, Mat& processMatrix, bool considerDiagonals) {
+  Mat labelMatrix = Mat::zeros(inputMatrix.rows, inputMatrix.cols, CV_32S);
+  processMatrix = Mat::zeros(inputMatrix.rows, inputMatrix.cols, CV_8U);
+  // Count of occurrences of each label 
+  std::vector<uint > labelCount;
+  // Keeps track of smallest label that each label is connected to - used in labeling merging step
+  std::vector<uint > labelCorres;
+  // Labels of neighbors
+  std::vector<uint > neighborLabels;
+  bool hasNeighbors;
+  // The latest new label that was created
+  uint minLabel, newestLabel = 0, largestLabelIndex = 0, largestLabelCount = 0;
+
+  for (int r = 1; r < labelMatrix.rows - 1; r++) {
+    for (int c = 1; c < labelMatrix.cols - 1; c++) {
+      if (inputMatrix.at<uchar > (r, c) != 0) {
+        hasNeighbors = false;
+        neighborLabels.clear();
+        // Check for neighbors and record their labels
+        if (labelMatrix.at<uint > (r, c - 1) != 0) { // W
+          neighborLabels.push_back(labelMatrix.at<uint > (r, c - 1));
+          hasNeighbors = true;
+        }
+        if (labelMatrix.at<uint > (r - 1, c) != 0) { // N
+          neighborLabels.push_back(labelMatrix.at<uint > (r - 1, c));
+          hasNeighbors = true;
+        }
+        if (considerDiagonals) {
+          if (labelMatrix.at<uint > (r - 1, c - 1) != 0) { // NW
+            neighborLabels.push_back(labelMatrix.at<uint > (r - 1, c - 1));
+            hasNeighbors = true;
+          }
+          if (labelMatrix.at<uint > (r - 1, c + 1) != 0) { // NE
+            neighborLabels.push_back(labelMatrix.at<uint > (r - 1, c + 1));
+            hasNeighbors = true;
+          }
+        }
+        if (!hasNeighbors) {
+          // Use new label
+          newestLabel++;
+          labelMatrix.at<uint > (r, c) = newestLabel;
+          // Record correspondence
+          if (labelCorres.size() < newestLabel) {
+            labelCorres.resize(newestLabel + 1, 0);
+            // Initialize correspondence to self
+            labelCorres[newestLabel] = newestLabel;
+          } else {
+            // This will happen if reserve decides to put in more space than we request for a previous new label
+            // Initialize correspondence to self
+            labelCorres[newestLabel] = newestLabel;
+          }
+        } else {
+          // Use smallest of neighbor's labels
+          minLabel = minimum(neighborLabels);
+          labelMatrix.at<uint > (r, c) = minLabel;
+          // Update correspondences
+          if (labelMatrix.at<uint > (r, c - 1) != 0) { // W
+            labelCorres[labelMatrix.at<uint > (r, c - 1)] = minLabel;
+          }
+          if (labelMatrix.at<uint > (r - 1, c) != 0) { // N
+            labelCorres[labelMatrix.at<uint > (r - 1, c)] = minLabel;
+          }
+          if (considerDiagonals) {
+            if (labelMatrix.at<uint > (r - 1, c - 1) != 0) { // NW
+              labelCorres[labelMatrix.at<uint > (r - 1, c - 1)] = minLabel;
+            }
+            if (labelMatrix.at<uint > (r - 1, c + 1) != 0) { // NE
+              labelCorres[labelMatrix.at<uint > (r - 1, c + 1)] = minLabel;
+            }
+          }
+        }
+        // Update label count
+        if (labelMatrix.at<uint > (r, c) > labelCount.size()) {
+          labelCount.resize(labelMatrix.at<uint > (r, c) + 1);
+          labelCount[labelMatrix.at<uint > (r, c)] = 0;
+        }
+        labelCount[labelMatrix.at<uint > (r, c)]++;
+      }
+    }
+  }
+  // Remap corresponding labels
+  uint curCorres, degrees, maxDegrees = 0;
+  for (int r = 1; r < labelMatrix.rows - 1; r++) {
+    for (int c = 1; c < labelMatrix.cols - 1; c++) {
+      if ((labelMatrix.at<uint > (r, c) != 0) &&
+              (labelCorres[labelMatrix.at<uint > (r, c)] != labelCorres[labelCorres[labelMatrix.at<uint > (r, c)]])) {
+        curCorres = labelCorres[labelCorres[labelMatrix.at<uint > (r, c)]];
+        degrees = 1;
+        while (curCorres != labelCorres[curCorres]) {
+          curCorres = labelCorres[curCorres];
+          degrees++;
+        }
+        if (degrees > maxDegrees) {
+          maxDegrees = degrees;
+        }
+        labelCorres[labelMatrix.at<uint > (r, c)] = curCorres;
+      }
+    }
+  }
+  // Final count of labels - skip 0 (background) label
+  for (int i = 1; i < labelCount.size(); i++) {
+    if (i != labelCorres[i]) {
+      // Don't double-count self-labels
+      labelCount[labelCorres[i]] += labelCount[i];
+    }
+    if (labelCount[labelCorres[i]] > largestLabelCount) {
+      largestLabelCount = labelCount[labelCorres[i]];
+      largestLabelIndex = labelCorres[i];
+    }
+  }
+
+  // Debug visualization
+  for (int r = 1; r < labelMatrix.rows - 1; r++) {
+    for (int c = 1; c < labelMatrix.cols - 1; c++) {
+      if (labelMatrix.at<uint > (r, c) != 0) {
+        // Keep background set to 0
+        if (labelCorres[labelMatrix.at<uint > (r, c)] == largestLabelIndex) {
+          // Set pixels in largest label to 255
+          processMatrix.at<uchar > (r, c) = 255;
+        } else {
+          // Set pixels in non-largest labels to 128
+          processMatrix.at<uchar > (r, c) = 128;
+        }
+      }
+    }
+  }
+}
+
+void Gesture::findCentroid(const Mat& inputMatrix, float** stats) {
+
+}
+
+void Gesture::findCircles(Mat& src, Mat& dst, Mat& templ, double thresh, Vector<Point>& circles) {
   // Template matching
   matchTemplate(src, templ, dst, CV_TM_SQDIFF);
   // Find best matches
@@ -752,26 +601,17 @@ void Gesture::templateCircles(Mat& src, Mat& dst, Mat& templ, double thresh, Vec
   }
 }
 
-void Gesture::houghCircles(const Mat& src, Mat& dst, Mat& drawMatrix, Mat& templ) {
-  // Smooth it, otherwise a lot of false circles may be detected
-  //    GaussianBlur(src, dst, Size(9, 9), 4, 4);
-  medianBlur(src, dst, 5);
-
-  vector<Vec3f> circles;
-  HoughCircles(src, circles, CV_HOUGH_GRADIENT, 2, 40, 200, 100);
-  for (size_t i = 0; i < circles.size(); i++) {
-    Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
-    int radius = cvRound(circles[i][2]);
-    // draw the circle center
-    circle(drawMatrix, center, 3, Scalar(0, 255, 0), -1, 8, 0);
-    // draw the circle outline
-    circle(drawMatrix, center, radius, Scalar(0, 0, 255), 3, 8, 0);
+uint Gesture::minimum(const std::vector<uint> input) {
+  if (input.size() < 1) {
+    return -1;
   }
-  fprintf(stderr, "Found %ld circles.\n", circles.size());
-}
-
-void Gesture::printInfo(const Mat& mat) {
-  fprintf(stderr, "mat: %d %d %d %d %d\n", mat.rows, mat.cols, mat.channels(), mat.depth(), mat.type());
+  uint minimum = input[0];
+  for (uint i = 1; i < input.size(); i++) {
+    if (input[i] < minimum) {
+      minimum = input[i];
+    }
+  }
+  return minimum;
 }
 
 void Gesture::drawSquares(Mat& src, Vector<Point>& circles, int length, Scalar color) {
@@ -810,9 +650,43 @@ void Gesture::showImages(const Mat& inputMatrix, const Mat& processMatrix, const
   fprintf(stderr, "----------------------------\n");
 }
 
-void Gesture::findCCL(const Mat& inputMatrix, const Mat& processMatrix, const Mat& outputMatrix) {
-  
+void Gesture::printCVTypes() {
+  fprintf(stderr, "CV_8UC1 is %d\n", CV_8UC1);
+  fprintf(stderr, "CV_8UC2 is %d\n", CV_8UC2);
+  fprintf(stderr, "CV_8UC3 is %d\n", CV_8UC3);
+  fprintf(stderr, "CV_8UC4 is %d\n", CV_8UC4);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "CV_8SC1 is %d\n", CV_8SC1);
+  fprintf(stderr, "CV_8SC2 is %d\n", CV_8SC2);
+  fprintf(stderr, "CV_8SC3 is %d\n", CV_8SC3);
+  fprintf(stderr, "CV_8SC4 is %d\n", CV_8SC4);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "CV_16UC1 is %d\n", CV_16UC1);
+  fprintf(stderr, "CV_16UC2 is %d\n", CV_16UC2);
+  fprintf(stderr, "CV_16UC3 is %d\n", CV_16UC3);
+  fprintf(stderr, "CV_16UC4 is %d\n", CV_16UC4);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "CV_16SC1 is %d\n", CV_16SC1);
+  fprintf(stderr, "CV_16SC2 is %d\n", CV_16SC2);
+  fprintf(stderr, "CV_16SC3 is %d\n", CV_16SC3);
+  fprintf(stderr, "CV_16SC4 is %d\n", CV_16SC4);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "CV_32SC1 is %d\n", CV_32SC1);
+  fprintf(stderr, "CV_32SC2 is %d\n", CV_32SC2);
+  fprintf(stderr, "CV_32SC3 is %d\n", CV_32SC3);
+  fprintf(stderr, "CV_32SC4 is %d\n", CV_32SC4);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "CV_32FC1 is %d\n", CV_32FC1);
+  fprintf(stderr, "CV_32FC2 is %d\n", CV_32FC2);
+  fprintf(stderr, "CV_32FC3 is %d\n", CV_32FC3);
+  fprintf(stderr, "CV_32FC4 is %d\n", CV_32FC4);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "CV_64FC1 is %d\n", CV_64FC1);
+  fprintf(stderr, "CV_64FC2 is %d\n", CV_64FC2);
+  fprintf(stderr, "CV_64FC3 is %d\n", CV_64FC3);
+  fprintf(stderr, "CV_64FC4 is %d\n", CV_64FC4);
 }
-void Gesture::findCentroid(const Mat& inputMatrix, float** stats) {
-  
+
+void Gesture::printInfo(const Mat& mat) {
+  fprintf(stderr, "mat: %d %d %d %d %d\n", mat.rows, mat.cols, mat.channels(), mat.depth(), mat.type());
 }
