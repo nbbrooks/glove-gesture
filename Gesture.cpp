@@ -1,5 +1,6 @@
 #include <sstream>
 #include <vector>
+#include <math.h>
 #include "cv.h"
 #include "Gesture.h"
 #include "LargePrint.h"
@@ -37,7 +38,7 @@ Gesture::Gesture(int argc, char** argv) {
   } else if (argc == 4 && strlen(argv[1]) > 0 && !isdigit(argv[1][0])) {
     analyzeFile(argv[1], argv[2], argv[3]);
   }
-  
+
   cvDestroyWindow("Input");
   cvDestroyWindow("Process");
   cvDestroyWindow("Output");
@@ -87,6 +88,17 @@ void Gesture::processStream(int index) {
     } else {
       applyTableHSV(hsvMatrix, redMatrix, H_MIN_R1, H_MAX_R1, S_MIN_R1, S_MAX_R1, 0, 0);
     }
+    if (H_MIN_O1 != H_MIN_O2) {
+      applyTableHSV(hsvMatrix, tempMatrix, H_MIN_O1, H_MAX_O1, S_MIN_O1, S_MAX_O1, 0, 0);
+      applyTableHSV(hsvMatrix, orangeMatrix, H_MIN_O2, H_MAX_O2, S_MIN_O2, S_MAX_O2, 0, 0);
+      add(tempMatrix, orangeMatrix, orangeMatrix);
+    } else {
+      applyTableHSV(hsvMatrix, orangeMatrix, H_MIN_O1, H_MAX_O1, S_MIN_O1, S_MAX_O1, 0, 0);
+    }
+    findCCL(orangeMatrix, cclMatrix, true);
+    findCentroid(cclMatrix, centroidStats);
+    // Draw grey outline of centroid
+    drawCentroid(cclMatrix, centroidStats, Scalar(128));
 
     // Circle detection
     // Normalize 0 to 1 so matching scores are in usable range
@@ -176,9 +188,11 @@ void Gesture::processStream(int index) {
     rectangle(tempMatrix, Point(239, 319), Point(241, 321), Scalar(0, 0, 255), CV_FILLED, 8, 0);
 
     // Display results
-    tempImage = tempMatrix;
-    normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
-    outImage = outputMatrix;
+    //    tempImage = tempMatrix;
+    tempImage = orangeMatrix;
+    //    normalize(outputMatrix, outputMatrix, 0, 1, NORM_MINMAX, -1, Mat());
+    //    outImage = outputMatrix;
+    outImage = cclMatrix;
     if (display) {
       cvShowImage("Input", frameImage);
       cvShowImage("Process", &tempImage);
@@ -214,9 +228,9 @@ void Gesture::processFile(const char* fileName) {
   // Run gesture recognition on a single file
   Vector<Point> greenCircles32, greenCircles48, greenCircles64, redCircles32, redCircles48, redCircles64;
   // Load image
-//  std::cout << "File is " << argv[1] << std::endl;
+  //  std::cout << "File is " << argv[1] << std::endl;
   std::cout << "File is " << fileName << std::endl;
-//  frameImage = cvLoadImage(argv[1]);
+  //  frameImage = cvLoadImage(argv[1]);
   frameImage = cvLoadImage(fileName);
   frameMatrix = cvarrToMat(frameImage);
   if (DEBUG) {
@@ -249,6 +263,9 @@ void Gesture::processFile(const char* fileName) {
   fprintf(stderr, "greenMatrix[1, 1] is %d\n", greenMatrix.at<uchar > (1, 1));
 
   findCCL(orangeMatrix, cclMatrix, true);
+  findCentroid(cclMatrix, centroidStats);
+    // Draw grey outline of centroid
+  drawCentroid(cclMatrix, centroidStats, Scalar(128));
 
   // Circle detection
   // Normalize 0 to 1 so matching scores are in usable range
@@ -326,7 +343,7 @@ void Gesture::analyzeFile(const char *fileName, const char *suffix1, const char 
   frameMatrix.convertTo(frameMatrix, CV_32FC3);
   cvtColor(frameMatrix, hsvMatrix, CV_BGR2HSV);
 
-//  if (strcmp(argv[2], argv[3]) == 0) {
+  //  if (strcmp(argv[2], argv[3]) == 0) {
   if (strcmp(suffix1, suffix2) == 0) {
     // Use for things with valid entries at only one point in HSV spectrum
     // both sets of min/maxes are printed out, but the program will on
@@ -342,7 +359,7 @@ void Gesture::analyzeFile(const char *fileName, const char *suffix1, const char 
       if (hsvMatrix.at<Vec3f > (i, j)[0] != 0 && hsvMatrix.at<Vec3f > (i, j)[1] != 0 &&
               hsvMatrix.at<Vec3f > (i, j)[2] != 255) {
         valid++;
-//        if (strcmp(argv[2], argv[3]) == 0) {
+        //        if (strcmp(argv[2], argv[3]) == 0) {
         if (strcmp(suffix1, suffix2) == 0) {
           if (hsvMatrix.at<Vec3f > (i, j)[0] < hMin1) {
             hMin1 = hsvMatrix.at<Vec3f > (i, j)[0];
@@ -561,16 +578,34 @@ void Gesture::findCCL(const Mat& inputMatrix, Mat& processMatrix, bool considerD
           // Set pixels in largest label to 255
           processMatrix.at<uchar > (r, c) = 255;
         } else {
-          // Set pixels in non-largest labels to 128
-          processMatrix.at<uchar > (r, c) = 128;
+          // For debugging, you can set pixels in non-largest labels to 128, but 
+          //    this will cause them to be counted as in the largest label group 
+          //    when centroid calculations are performed!
+          //processMatrix.at<uchar > (r, c) = 128;
         }
       }
     }
   }
 }
 
-void Gesture::findCentroid(const Mat& inputMatrix, float** stats) {
+void Gesture::findCentroid(const Mat& inputMatrix, double* stats) {
+  Moments cclMoment = moments(inputMatrix, true);
+  double cx, cy, a, b, c, theta, width, height;
+  cx = cclMoment.m10 / cclMoment.m00;
+  cy = cclMoment.m01 / cclMoment.m00;
 
+  a = cclMoment.m20 / cclMoment.m00 - cx * cx;
+  b = 2 * (cclMoment.m11 / cclMoment.m00 - cx * cy);
+  c = cclMoment.m02 / cclMoment.m00 - cy * cy;
+  theta = atan2(b, (a - c)) / 2;
+  width = sqrt(6 * (a + c + sqrt(pow(b, 2) + pow((a - c), 2))));
+  height = sqrt(6 * (a + c - sqrt(pow(b, 2) + pow((a - c), 2))));
+
+  stats[0] = cx;
+  stats[1] = cy;
+  stats[2] = theta;
+  stats[3] = width;
+  stats[4] = height;
 }
 
 void Gesture::findCircles(Mat& src, Mat& dst, Mat& templ, double thresh, Vector<Point>& circles) {
@@ -612,6 +647,27 @@ uint Gesture::minimum(const std::vector<uint> input) {
     }
   }
   return minimum;
+}
+
+void Gesture::drawCentroid(Mat& src, double* stats, Scalar color) {
+  double cx, cy, theta, width, height;
+  cx = stats[0];
+  cy = stats[1];
+  theta = stats[2];
+  width = stats[3];
+  height = stats[4];
+  Point ul = Point(cx - cos(theta) * width / 2 + sin(theta) * height / 2, cy - cos(theta) * height / 2 - sin(theta) * width / 2);
+  Point ur = Point(cx + cos(theta) * width / 2 + sin(theta) * height / 2, cy - cos(theta) * height / 2 + sin(theta) * width / 2);
+  Point lr = Point(cx + cos(theta) * width / 2 - sin(theta) * height / 2, cy + cos(theta) * height / 2 + sin(theta) * width / 2);
+  Point ll = Point(cx - cos(theta) * width / 2 - sin(theta) * height / 2, cy + cos(theta) * height / 2 - sin(theta) * width / 2);
+//  std::cout << "Point ul is [" << ul.x << ", " << ul.y << "]\n";
+//  std::cout << "Point ur is [" << ur.x << ", " << ur.y << "]\n";
+//  std::cout << "Point lr is [" << lr.x << ", " << lr.y << "]\n";
+//  std::cout << "Point ll is [" << ll.x << ", " << ll.y << "]\n";
+  line(src, ul, ur, color, 2, 8, 0);
+  line(src, ur, lr, color, 2, 8, 0);
+  line(src, lr, ll, color, 2, 8, 0);
+  line(src, ll, ul, color, 2, 8, 0);
 }
 
 void Gesture::drawSquares(Mat& src, Vector<Point>& circles, int length, Scalar color) {

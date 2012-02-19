@@ -44,16 +44,25 @@ private:
     static const double H_MAX_R2 = 179.763779; // (359.527557)
     static const double S_MIN_R2 = 157.382812; // (61.718750)
     static const double S_MAX_R2 = 208.935482; // (81.935483)
+    // Orange
+    static const double H_MIN_O1 = 0.294118; // (0.588235)
+    static const double H_MAX_O1 = 0.891089; // (1.782178)
+    static const double S_MIN_O1 = 194.656487; // (76.335877)
+    static const double S_MAX_O1 = 199.651167; // (78.294575)
+    static const double H_MIN_O2 = 172.781952; // (345.563904)
+    static const double H_MAX_O2 = 179.428574; // (358.857147)
+    static const double S_MIN_O2 = 188.214282; // (73.809522)
+    static const double S_MAX_O2 = 231.818189; // (90.909094)    
+//    static const double H_MIN_O1 = 3.913043; // (7.826087)
+//    static const double H_MAX_O1 = 15.695364; // (31.390728)
+//    static const double S_MIN_O1 = 12.047244; // (4.724409)
+//    static const double S_MAX_O1 = 227.109375; // (89.062500)
+//    static const double H_MIN_O2 = 3.913043; // (7.826087)
+//    static const double H_MAX_O2 = 15.695364; // (31.390728)
+//    static const double S_MIN_O2 = 12.047244; // (4.724409)
+//    static const double S_MAX_O2 = 227.109375; // (89.062500)
 
-    static const double H_MIN_O1 = 2.477064; // (4.954129)
-    static const double H_MAX_O1 = 37.500000; // (75.000000)
-    static const double S_MIN_O1 = 114.636363; // (1.818182)
-    static const double S_MAX_O1 = 255.000000; // (100.000000)
-    static const double H_MIN_O2 = 2.477064; // (4.954129)
-    static const double H_MAX_O2 = 37.500000; // (75.000000)
-    static const double S_MIN_O2 = 114.636363; // (1.818182)
-    static const double S_MAX_O2 = 255.000000; // (100.000000)
-    
+
     IplImage* frameImage;
     IplImage* prevFrame;
     IplImage* procFrame;
@@ -62,7 +71,8 @@ private:
     Mat frameMatrix, outputMatrix, redMatrix, greenMatrix, orangeMatrix, tempMatrix,
     template32Matrix, template48Matrix, template64Matrix, hsvMatrix,
     cclMatrix;
-    float centroidStats[5];
+    // [cx, cy, theta, width, height]
+    double centroidStats[5];
     
     // Runtime functions
     void processStream(int index);
@@ -74,11 +84,12 @@ private:
     void applyMedian(const Mat& src, Mat& dst);
     void applyTableHSV(const Mat& src, Mat& dst, double hMin, double hMax, double sMin, double sMax, double vMin, double vMax);
     void findCCL(const Mat& inputMatrix, Mat& outputMatrix, bool considerDiagonals);
-    void findCentroid(const Mat& inputMatrix, float** stats);
+    void findCentroid(const Mat& inputMatrix, double* stats);
     void findCircles(Mat& src, Mat& dst, Mat& templ, double thresh, Vector<Point>& circles);
     // Helper functions
     uint minimum(const std::vector<uint> input);
     // Debugging functions
+    void drawCentroid(Mat& src, double* stats, Scalar color);
     void drawSquares(Mat& src, Vector<Point>& circles, int length, Scalar color);
     void printCVTypes();
     void printInfo(const Mat &mat);
